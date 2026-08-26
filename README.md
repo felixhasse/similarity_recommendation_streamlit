@@ -28,14 +28,11 @@ alignment, embedding norms, and a ten-result recommendation smoke test.
 ## Push to GitHub
 
 This package is intentionally below GitHub's 100 MiB per-file limit and does
-not require Git LFS. Create an empty GitHub repository, then run from this
-folder:
+not require Git LFS. The folder is already initialized as a Git repository on
+the `main` branch with the deployment contents committed. Create an empty
+GitHub repository without adding a README or license, then run from this folder:
 
 ```bash
-git init
-git add .
-git commit -m "Deploy FashionCLIP recommendation app"
-git branch -M main
 git remote add origin https://github.com/YOUR_ACCOUNT/YOUR_REPOSITORY.git
 git push -u origin main
 ```
@@ -60,4 +57,3 @@ in the cloud.
 
 Before publishing the repository or app, confirm that the source image dataset
 license permits the intended public redistribution and use.
-
