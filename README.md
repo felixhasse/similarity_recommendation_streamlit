@@ -29,12 +29,21 @@ alignment, embedding norms, and a ten-result recommendation smoke test.
 
 This package is intentionally below GitHub's 100 MiB per-file limit and does
 not require Git LFS. The folder is already initialized as a Git repository on
-the `main` branch with the deployment contents committed. Create an empty
-GitHub repository without adding a README or license, then run from this folder:
+the `main` branch with the deployment contents committed. Its `origin` points
+to `git@github.com:felixhasse/similarity_recommendation_streamlit.git`.
+
+Create that empty GitHub repository without adding a README or license if it
+does not exist yet, verify the configured destination, and push:
 
 ```bash
-git remote add origin https://github.com/YOUR_ACCOUNT/YOUR_REPOSITORY.git
+git remote -v
 git push -u origin main
+```
+
+To use another repository instead, first run:
+
+```bash
+git remote set-url origin https://github.com/YOUR_ACCOUNT/YOUR_REPOSITORY.git
 ```
 
 Avoid repeatedly replacing the binary assets in later commits because Git
