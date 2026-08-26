@@ -1,0 +1,30 @@
+{
+  "created_utc": "2026-08-26T17:53:47.397043+00:00",
+  "base_model_id": "patrickjohncyh/fashion-clip",
+  "embedding_dimension": 512,
+  "image_format": "WebP",
+  "image_max_dimension": 640,
+  "image_quality": 80,
+  "indexes": {
+    "clothing": {
+      "image_count": 19973,
+      "original_image_bytes": 191913173,
+      "compressed_image_bytes": 18794942
+    },
+    "outfits": {
+      "image_count": 12994,
+      "original_image_bytes": 1804243321,
+      "compressed_image_bytes": 222094434
+    }
+  },
+  "artifact_sha256": {
+    "clothing_embeddings.npy": "5f9902d3a618032ee11bbf6b890c47516786b76fd234c34d232b30d17c7a6d0e",
+    "clothing_manifest.csv": "8b48ff9700f93121c4cc89ca0f91eb56127bf451dbc675aaeed372036bd7a00f",
+    "clothing_metadata.json": "295fd67a4e3e3bd932189a376ebe3a5e1069d6f49a6f05a2e2822d3cb2c31e4b",
+    "outfits_embeddings.npy": "4b24c87e3d65625e0a4c5eb22086ebb32e9ee2670f8fa096a4006a2e1f8dc7b4",
+    "outfits_manifest.csv": "2cd919994c1d7c55b48034a42c9236139f784d0b4523b62e8dda760f0961e339",
+    "outfits_metadata.json": "d743ac9ff0a2d19137a2a65c08a590279cd78ceac97fe6b723f9c5a046cc907b"
+  },
+  "payload_file_count": 32982,
+  "payload_bytes": 313326339
+}

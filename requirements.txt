@@ -1,0 +1,5 @@
+streamlit==1.62.0
+numpy==2.4.6
+pandas==3.0.5
+pillow==12.3.0
+

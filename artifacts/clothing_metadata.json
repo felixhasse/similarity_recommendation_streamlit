@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "name": "clothing",
+  "model_id": "patrickjohncyh/fashion-clip",
+  "row_count": 19973,
+  "embedding_dimension": 512,
+  "normalized": true,
+  "filters": {
+    "gender": [
+      "Men",
+      "Women"
+    ],
+    "masterCategory": "Apparel"
+  }
+}
