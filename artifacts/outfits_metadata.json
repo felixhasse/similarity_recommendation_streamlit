@@ -1,7 +1,11 @@
 {
   "format_version": 1,
   "name": "outfits",
+  "model_key": "fashionclip",
+  "model_label": "FashionCLIP",
   "model_id": "patrickjohncyh/fashion-clip",
+  "model_revision": null,
+  "model_license": null,
   "row_count": 12994,
   "embedding_dimension": 512,
   "normalized": true,

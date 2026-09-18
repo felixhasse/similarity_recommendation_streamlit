@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from index_store import load_embedding_index, resolve_data_path
+from index_store import MODEL_SPECS, load_embedding_index, resolve_data_path
 from recommender import aggregate_preference, rank_candidates
 
 
@@ -31,14 +31,21 @@ def validate_artifact_checksums(info: dict[str, object]) -> None:
             raise RuntimeError(f"Artifact checksum mismatch: {filename}")
 
 
-def validate_index(name: str, max_dimension: int) -> None:
-    index = load_embedding_index(name, APP_DIR)
+def validate_index(
+    name: str,
+    max_dimension: int,
+    model_key: str,
+    validate_images: bool,
+) -> None:
+    index = load_embedding_index(name, APP_DIR, model_key)
     norms = np.linalg.norm(index.embeddings, axis=1)
     if not np.isfinite(norms).all() or not np.allclose(norms, 1.0, atol=2e-5):
-        raise RuntimeError(f"{name} embeddings are not unit-normalized.")
+        raise RuntimeError(f"{model_key} {name} embeddings are not unit-normalized.")
     if not index.manifest["image_path"].is_unique:
         raise RuntimeError(f"{name} manifest contains duplicate image paths.")
 
+    if not validate_images:
+        return
     for number, image_path in enumerate(index.manifest["image_path"], start=1):
         path = resolve_data_path(image_path, APP_DIR)
         if path.suffix.lower() != ".webp":
@@ -48,7 +55,10 @@ def validate_index(name: str, max_dimension: int) -> None:
                 raise RuntimeError(f"Oversized deployment image: {image_path}")
             image.verify()
         if number % 1000 == 0 or number == len(index.manifest):
-            print(f"\r{name}: verified {number:,}/{len(index.manifest):,} images", end="")
+            print(
+                f"\r{name}: verified {number:,}/{len(index.manifest):,} images",
+                end="",
+            )
     print()
 
 
@@ -56,23 +66,36 @@ def main() -> None:
     info = json.loads((APP_DIR / "DEPLOYMENT_INFO.json").read_text(encoding="utf-8"))
     max_dimension = int(info["image_max_dimension"])
     validate_artifact_checksums(info)
-    validate_index("clothing", max_dimension)
-    validate_index("outfits", max_dimension)
+    for model_number, model_key in enumerate(MODEL_SPECS):
+        validate_index(
+            "clothing",
+            max_dimension,
+            model_key,
+            validate_images=model_number == 0,
+        )
+        validate_index(
+            "outfits",
+            max_dimension,
+            model_key,
+            validate_images=model_number == 0,
+        )
 
-    clothing = load_embedding_index("clothing", APP_DIR)
-    outfits = load_embedding_index("outfits", APP_DIR)
-    preference = aggregate_preference(
-        np.asarray(outfits.embeddings[[0]]),
-        np.asarray(outfits.embeddings[[1]]),
-    )
-    results = rank_candidates(
-        preference,
-        clothing,
-        gender=str(outfits.manifest.iloc[0]["gender"]),
-        top_k=10,
-    )
-    if len(results) != 10:
-        raise RuntimeError("Recommendation smoke test did not return ten results.")
+        clothing = load_embedding_index("clothing", APP_DIR, model_key)
+        outfits = load_embedding_index("outfits", APP_DIR, model_key)
+        preference = aggregate_preference(
+            np.asarray(outfits.embeddings[[0]]),
+            np.asarray(outfits.embeddings[[1]]),
+        )
+        results = rank_candidates(
+            preference,
+            clothing,
+            gender=str(outfits.manifest.iloc[0]["gender"]),
+            top_k=10,
+        )
+        if len(results) != 10:
+            raise RuntimeError(
+                f"{model_key} recommendation smoke test did not return ten results."
+            )
     print("Deployment validation passed.")
 
 

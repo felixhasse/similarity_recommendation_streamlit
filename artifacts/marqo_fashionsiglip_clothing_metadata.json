@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "name": "clothing",
+  "model_key": "marqo_fashionsiglip",
+  "model_label": "Marqo FashionSigLIP",
+  "model_id": "Marqo/marqo-fashionSigLIP",
+  "model_revision": "c56244cc94f92419e8369fa71efdaf403b124ce8",
+  "model_license": "apache-2.0",
+  "row_count": 23273,
+  "embedding_dimension": 768,
+  "normalized": true,
+  "filters": {
+    "gender": [
+      "Men",
+      "Women"
+    ],
+    "category": {
+      "Men": "Men",
+      "Ladies": "Women"
+    },
+    "view": "front",
+    "splits": [
+      "train"
+    ]
+  },
+  "dataset_id": "chibifire/zenodo-second-hand-fashion-v3",
+  "dataset_revision": "d32b983103be67af13365dbfcc9db41faa9aadab",
+  "source_doi": "10.5281/zenodo.13788681",
+  "license": "CC-BY-4.0"
+}

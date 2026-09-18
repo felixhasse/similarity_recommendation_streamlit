@@ -12,11 +12,25 @@ import pandas as pd
 from recommender import EmbeddingIndex
 
 
-MODEL_ID = "patrickjohncyh/fashion-clip"
 SECOND_HAND_DATASET_ID = "chibifire/zenodo-second-hand-fashion-v3"
 SECOND_HAND_DATASET_REVISION = "d32b983103be67af13365dbfcc9db41faa9aadab"
 FORMAT_VERSION = 1
 INDEX_NAMES = ("clothing", "outfits")
+DEFAULT_MODEL_KEY = "fashionclip"
+MODEL_SPECS = {
+    "fashionclip": {
+        "label": "FashionCLIP",
+        "model_id": "patrickjohncyh/fashion-clip",
+        "revision": None,
+        "artifact_prefix": "",
+    },
+    "marqo_fashionsiglip": {
+        "label": "Marqo FashionSigLIP",
+        "model_id": "Marqo/marqo-fashionSigLIP",
+        "revision": "c56244cc94f92419e8369fa71efdaf403b124ce8",
+        "artifact_prefix": "marqo_fashionsiglip_",
+    },
+}
 
 
 class DeploymentDataError(RuntimeError):
@@ -43,22 +57,36 @@ def _read_metadata(path: Path) -> dict[str, Any]:
         raise DeploymentDataError(f"Metadata is invalid: {path.name}") from error
 
 
-def load_embedding_index(name: str, app_dir: Path) -> EmbeddingIndex:
+def load_embedding_index(
+    name: str, app_dir: Path, model_key: str = DEFAULT_MODEL_KEY
+) -> EmbeddingIndex:
     if name not in INDEX_NAMES:
         raise DeploymentDataError(f"Unknown index: {name}")
+    try:
+        model_spec = MODEL_SPECS[model_key]
+    except KeyError as error:
+        raise DeploymentDataError(f"Unknown embedding model: {model_key}") from error
     artifact_dir = app_dir / "artifacts"
-    embeddings_path = artifact_dir / f"{name}_embeddings.npy"
+    stem = f"{model_spec['artifact_prefix']}{name}"
+    embeddings_path = artifact_dir / f"{stem}_embeddings.npy"
     manifest_path = artifact_dir / f"{name}_manifest.csv"
-    metadata_path = artifact_dir / f"{name}_metadata.json"
+    metadata_path = artifact_dir / f"{stem}_metadata.json"
 
     metadata = _read_metadata(metadata_path)
     if (
         metadata.get("format_version") != FORMAT_VERSION
-        or metadata.get("model_id") != MODEL_ID
+        or metadata.get("model_id") != model_spec["model_id"]
         or metadata.get("name") != name
         or metadata.get("normalized") is not True
     ):
         raise DeploymentDataError(f"{name} metadata is incompatible.")
+    if metadata.get("model_key") not in (None, model_key):
+        raise DeploymentDataError(f"{name} metadata has the wrong model key.")
+    if (
+        model_spec["revision"] is not None
+        and metadata.get("model_revision") != model_spec["revision"]
+    ):
+        raise DeploymentDataError(f"{name} metadata has the wrong model revision.")
     if name == "clothing" and (
         metadata.get("dataset_id") != SECOND_HAND_DATASET_ID
         or metadata.get("dataset_revision") != SECOND_HAND_DATASET_REVISION

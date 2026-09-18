@@ -1,4 +1,4 @@
-"""Deployment-only Streamlit UI for FashionCLIP recommendations."""
+"""Deployment-only Streamlit UI with selectable fashion embedding models."""
 
 from __future__ import annotations
 
@@ -9,7 +9,12 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from index_store import DeploymentDataError, load_embedding_index, resolve_data_path
+from index_store import (
+    MODEL_SPECS,
+    DeploymentDataError,
+    load_embedding_index,
+    resolve_data_path,
+)
 from recommender import (
     EmbeddingIndex,
     RecommendationError,
@@ -23,6 +28,7 @@ APP_DIR = Path(__file__).resolve().parent
 OUTFIT_COUNT = 15
 RECOMMENDATION_COUNT = 10
 GENDER_OPTIONS = {"Man": "Men", "Woman": "Women"}
+MODEL_OPTIONS = {spec["label"]: key for key, spec in MODEL_SPECS.items()}
 
 
 st.set_page_config(
@@ -50,9 +56,14 @@ st.markdown(
 
 
 @st.cache_resource(show_spinner=False)
-def _load_indexes(app_dir: str) -> tuple[EmbeddingIndex, EmbeddingIndex]:
+def _load_indexes(
+    app_dir: str, model_key: str
+) -> tuple[EmbeddingIndex, EmbeddingIndex]:
     root = Path(app_dir)
-    return load_embedding_index("clothing", root), load_embedding_index("outfits", root)
+    return (
+        load_embedding_index("clothing", root, model_key),
+        load_embedding_index("outfits", root, model_key),
+    )
 
 
 def _start_rating_session(outfits: EmbeddingIndex, gender: str) -> None:
@@ -77,17 +88,26 @@ def _product_details(row: pd.Series) -> str:
     return f"{item_type} · {colors}"
 
 
-try:
-    clothing_index, outfit_index = _load_indexes(str(APP_DIR))
-except DeploymentDataError as error:
-    st.error(f"Deployment data is incomplete: {error}")
-    st.stop()
-
 st.title("Find your style direction")
 st.write(
     "Rate 15 outfits and receive ten apparel recommendations shaped by what you "
     "like—and what you do not."
 )
+
+model_label = st.selectbox(
+    "Embedding model",
+    list(MODEL_OPTIONS),
+    help=(
+        "The same ratings are projected through the selected model's precomputed "
+        "outfit and clothing embeddings."
+    ),
+)
+model_key = MODEL_OPTIONS[model_label]
+try:
+    clothing_index, outfit_index = _load_indexes(str(APP_DIR), model_key)
+except DeploymentDataError as error:
+    st.error(f"Deployment data is incomplete: {error}")
+    st.stop()
 
 controls = st.columns([1.4, 1, 2.6], vertical_alignment="bottom")
 with controls[0]:
@@ -146,7 +166,7 @@ for card_number, (position, row) in enumerate(selected_outfits.iterrows(), start
 rated_count = sum(rating is not None for rating in ratings)
 st.progress(rated_count / OUTFIT_COUNT, text=f"{rated_count} of {OUTFIT_COUNT} rated")
 
-current_signature = (tuple(ratings), float(lambda_negative), gender)
+current_signature = (tuple(ratings), float(lambda_negative), gender, model_key)
 if st.session_state.get("recommendation_signature") != current_signature:
     st.session_state.pop("recommendations", None)
 
@@ -184,7 +204,7 @@ if "recommendations" in st.session_state:
     st.divider()
     st.subheader("Your closest matches")
     st.caption(
-        "Ranked by cosine similarity to your normalized FashionCLIP preference vector."
+        f"Ranked by cosine similarity to your normalized {model_label} preference vector."
     )
     result_columns = st.columns(5)
     for rank, (_, row) in enumerate(recommendations.iterrows(), start=1):
@@ -201,7 +221,10 @@ if "recommendations" in st.session_state:
 
 st.divider()
 st.caption(
-    "Precomputed embeddings: base patrickjohncyh/fashion-clip model · Recommendations: "
+    "Precomputed embeddings: [patrickjohncyh/fashion-clip]"
+    "(https://huggingface.co/patrickjohncyh/fashion-clip) and "
+    "[Marqo/marqo-fashionSigLIP]"
+    "(https://huggingface.co/Marqo/marqo-fashionSigLIP) · Recommendations: "
     "adult front views from the [Second-Hand Fashion Dataset v3]"
     "(https://huggingface.co/datasets/chibifire/zenodo-second-hand-fashion-v3) "
     "([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/))"

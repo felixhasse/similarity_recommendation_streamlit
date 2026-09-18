@@ -1,7 +1,23 @@
 {
-  "created_utc": "2026-09-18T12:12:38.515567+00:00",
-  "base_model_id": "patrickjohncyh/fashion-clip",
-  "embedding_dimension": 512,
+  "created_utc": "2026-09-18T13:30:40.271320+00:00",
+  "models": [
+    {
+      "key": "fashionclip",
+      "label": "FashionCLIP",
+      "model_id": "patrickjohncyh/fashion-clip",
+      "model_revision": null,
+      "embedding_dimension": 512,
+      "normalized": true
+    },
+    {
+      "key": "marqo_fashionsiglip",
+      "label": "Marqo FashionSigLIP",
+      "model_id": "Marqo/marqo-fashionSigLIP",
+      "model_revision": "c56244cc94f92419e8369fa71efdaf403b124ce8",
+      "embedding_dimension": 768,
+      "normalized": true
+    }
+  ],
   "image_format": "WebP",
   "image_max_dimension": 512,
   "image_quality": 76,
@@ -21,13 +37,17 @@
   "artifact_sha256": {
     "clothing_embeddings.npy": "b5e91abbb551af7d75057cf1760ea67e679dffe09ba1d7affdc9fbb5bbdb3e13",
     "clothing_manifest.csv": "37fa83e829110c694adbd638ecc8b13b8da826326826a7fe2534f77a602f602e",
-    "clothing_metadata.json": "96afd27e6892f4d30a209617c346e107cabf046972195fb29906ac92eac3240c",
+    "clothing_metadata.json": "9601ea2fa76ac793ecef26b1e3b074b0450e217184c21a37df5a81d63c5f64d2",
+    "marqo_fashionsiglip_clothing_embeddings.npy": "137a11744292aca7dc9268296f338eedd8412f637434c052e6bd4e7e2a0ea076",
+    "marqo_fashionsiglip_clothing_metadata.json": "5141ad12cb2292d01c512ae98093aa1e9f53e430f003e7f30d0a9cc6a3c81145",
+    "marqo_fashionsiglip_outfits_embeddings.npy": "1b6a2e37a8f1b352771b65f4996a5de9edb576865aace8bcbfa374358235d989",
+    "marqo_fashionsiglip_outfits_metadata.json": "207006393ff2f322c49b4ff11db8d2ab6b6ad88f3656af56a314ea89443879fe",
     "outfits_embeddings.npy": "4b24c87e3d65625e0a4c5eb22086ebb32e9ee2670f8fa096a4006a2e1f8dc7b4",
     "outfits_manifest.csv": "2cd919994c1d7c55b48034a42c9236139f784d0b4523b62e8dda760f0961e339",
-    "outfits_metadata.json": "d743ac9ff0a2d19137a2a65c08a590279cd78ceac97fe6b723f9c5a046cc907b"
+    "outfits_metadata.json": "55713ff78f0c732d0ed84d52758e0297ae445f7d8ca9c6122acb5273c7f71aea"
   },
-  "payload_file_count": 36283,
-  "payload_bytes": 498020012,
+  "payload_file_count": 36287,
+  "payload_bytes": 609436818,
   "clothing_dataset": {
     "dataset_id": "chibifire/zenodo-second-hand-fashion-v3",
     "dataset_url": "https://huggingface.co/datasets/chibifire/zenodo-second-hand-fashion-v3",

@@ -1,0 +1,19 @@
+{
+  "format_version": 1,
+  "name": "outfits",
+  "model_key": "marqo_fashionsiglip",
+  "model_label": "Marqo FashionSigLIP",
+  "model_id": "Marqo/marqo-fashionSigLIP",
+  "model_revision": "c56244cc94f92419e8369fa71efdaf403b124ce8",
+  "model_license": "apache-2.0",
+  "row_count": 12994,
+  "embedding_dimension": 768,
+  "normalized": true,
+  "filters": {
+    "gender": [
+      "Men",
+      "Women"
+    ],
+    "distinct_products": true
+  }
+}

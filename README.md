@@ -1,8 +1,8 @@
-# FashionCLIP Style Compass — Streamlit deployment
+# Fashion embedding Style Compass — Streamlit deployment
 
 This folder is a self-contained deployment repository. It includes:
 
-- Precomputed, L2-normalized base FashionCLIP embeddings.
+- Precomputed, L2-normalized FashionCLIP and Marqo FashionSigLIP embeddings.
 - Adult front-view recommendation candidates from the training split of
   [`chibifire/zenodo-second-hand-fashion-v3`](https://huggingface.co/datasets/chibifire/zenodo-second-hand-fashion-v3).
 - Only the clothing and representative outfit images referenced by the manifests.
@@ -10,9 +10,10 @@ This folder is a self-contained deployment repository. It includes:
 - A model-free Streamlit runtime: PyTorch and Transformers are not installed or
   loaded on the server.
 
-The embeddings were generated with the base
-`patrickjohncyh/fashion-clip` checkpoint. No fine-tuned classifier weights are
-used.
+The user can switch between the base `patrickjohncyh/fashion-clip` checkpoint
+and `Marqo/marqo-fashionSigLIP`, pinned to revision
+`c56244cc94f92419e8369fa71efdaf403b124ce8`. No fine-tuned FashionCLIP
+classifier weights are used.
 
 The second-hand clothing snapshot is pinned to commit
 `d32b983103be67af13365dbfcc9db41faa9aadab`. `Ladies` items map to the app's
@@ -31,8 +32,9 @@ python validate_deployment.py
 streamlit run app.py
 ```
 
-`validate_deployment.py` verifies every compressed image, the manifest/index
-alignment, embedding norms, and a ten-result recommendation smoke test.
+`validate_deployment.py` verifies every compressed image, all four embedding
+matrices, manifest/index alignment, embedding norms, and a ten-result
+recommendation smoke test for each model.
 
 ## Push to GitHub
 
@@ -67,9 +69,9 @@ retains previous versions in repository history.
 4. In **Advanced settings**, select Python **3.11**. No secrets are required.
 5. Select **Deploy**.
 
-The app memory-maps the two embedding matrices and serves only the images shown
-for the active session. It does not download the model or calculate embeddings
-in the cloud.
+The app memory-maps the selected model's two embedding matrices and serves only
+the images shown for the active session. It does not download either model or
+calculate embeddings in the cloud.
 
 ## Data attribution
 
