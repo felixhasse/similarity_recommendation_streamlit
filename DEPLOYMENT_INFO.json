@@ -1,30 +1,58 @@
 {
-  "created_utc": "2026-08-26T17:53:47.397043+00:00",
+  "created_utc": "2026-09-18T12:12:38.515567+00:00",
   "base_model_id": "patrickjohncyh/fashion-clip",
   "embedding_dimension": 512,
   "image_format": "WebP",
-  "image_max_dimension": 640,
-  "image_quality": 80,
+  "image_max_dimension": 512,
+  "image_quality": 76,
   "indexes": {
     "clothing": {
-      "image_count": 19973,
-      "original_image_bytes": 191913173,
-      "compressed_image_bytes": 18794942
+      "image_count": 23273,
+      "original_image_bytes": 488542372,
+      "compressed_image_bytes": 282162084
     },
     "outfits": {
       "image_count": 12994,
       "original_image_bytes": 1804243321,
-      "compressed_image_bytes": 222094434
+      "compressed_image_bytes": 133623000
     }
   },
+  "removed_unreferenced_images": 0,
   "artifact_sha256": {
-    "clothing_embeddings.npy": "5f9902d3a618032ee11bbf6b890c47516786b76fd234c34d232b30d17c7a6d0e",
-    "clothing_manifest.csv": "8b48ff9700f93121c4cc89ca0f91eb56127bf451dbc675aaeed372036bd7a00f",
-    "clothing_metadata.json": "295fd67a4e3e3bd932189a376ebe3a5e1069d6f49a6f05a2e2822d3cb2c31e4b",
+    "clothing_embeddings.npy": "b5e91abbb551af7d75057cf1760ea67e679dffe09ba1d7affdc9fbb5bbdb3e13",
+    "clothing_manifest.csv": "37fa83e829110c694adbd638ecc8b13b8da826326826a7fe2534f77a602f602e",
+    "clothing_metadata.json": "96afd27e6892f4d30a209617c346e107cabf046972195fb29906ac92eac3240c",
     "outfits_embeddings.npy": "4b24c87e3d65625e0a4c5eb22086ebb32e9ee2670f8fa096a4006a2e1f8dc7b4",
     "outfits_manifest.csv": "2cd919994c1d7c55b48034a42c9236139f784d0b4523b62e8dda760f0961e339",
     "outfits_metadata.json": "d743ac9ff0a2d19137a2a65c08a590279cd78ceac97fe6b723f9c5a046cc907b"
   },
-  "payload_file_count": 32982,
-  "payload_bytes": 313327371
+  "payload_file_count": 36283,
+  "payload_bytes": 498020012,
+  "clothing_dataset": {
+    "dataset_id": "chibifire/zenodo-second-hand-fashion-v3",
+    "dataset_url": "https://huggingface.co/datasets/chibifire/zenodo-second-hand-fashion-v3",
+    "dataset_revision": "d32b983103be67af13365dbfcc9db41faa9aadab",
+    "source_doi": "10.5281/zenodo.13788681",
+    "license": "CC-BY-4.0",
+    "splits": [
+      "train"
+    ],
+    "source_rows_scanned": 28474,
+    "adult_front_images": 23273,
+    "gender_counts": {
+      "Men": 3839,
+      "Women": 19434
+    },
+    "category_mapping": {
+      "Ladies": "Women",
+      "Women": "Women",
+      "Men": "Men",
+      "Mens": "Men"
+    },
+    "image_format": "WebP",
+    "image_max_dimension": 640,
+    "image_quality": 82,
+    "image_bytes": 488542372,
+    "created_utc": "2026-09-17T16:28:04.576585+00:00"
+  }
 }

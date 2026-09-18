@@ -71,6 +71,12 @@ def _product_text(row: pd.Series) -> str:
     return str(value)
 
 
+def _product_details(row: pd.Series) -> str:
+    item_type = row.get("type", row.get("articleType", "Clothing item"))
+    colors = row.get("colors", row.get("baseColour", "Unspecified"))
+    return f"{item_type} · {colors}"
+
+
 try:
     clothing_index, outfit_index = _load_indexes(str(APP_DIR))
 except DeploymentDataError as error:
@@ -189,13 +195,14 @@ if "recommendations" in st.session_state:
             )
             st.markdown(f"**{rank}. {_product_text(row)}**")
             st.caption(
-                f"{row['articleType']} · {row['baseColour']}  \n"
+                f"{_product_details(row)}  \n"
                 f"Similarity: {row['similarity']:.3f}"
             )
 
 st.divider()
 st.caption(
-    "Precomputed embeddings: base patrickjohncyh/fashion-clip model · "
-    "Recommendations: adult apparel matching the selected gender"
+    "Precomputed embeddings: base patrickjohncyh/fashion-clip model · Recommendations: "
+    "adult front views from the [Second-Hand Fashion Dataset v3]"
+    "(https://huggingface.co/datasets/chibifire/zenodo-second-hand-fashion-v3) "
+    "([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/))"
 )
-

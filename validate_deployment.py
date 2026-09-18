@@ -24,15 +24,14 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def validate_artifact_checksums() -> None:
-    info = json.loads((APP_DIR / "DEPLOYMENT_INFO.json").read_text(encoding="utf-8"))
+def validate_artifact_checksums(info: dict[str, object]) -> None:
     for filename, expected in info["artifact_sha256"].items():
         path = APP_DIR / "artifacts" / filename
         if sha256(path) != expected:
             raise RuntimeError(f"Artifact checksum mismatch: {filename}")
 
 
-def validate_index(name: str) -> None:
+def validate_index(name: str, max_dimension: int) -> None:
     index = load_embedding_index(name, APP_DIR)
     norms = np.linalg.norm(index.embeddings, axis=1)
     if not np.isfinite(norms).all() or not np.allclose(norms, 1.0, atol=2e-5):
@@ -45,7 +44,7 @@ def validate_index(name: str) -> None:
         if path.suffix.lower() != ".webp":
             raise RuntimeError(f"Uncompressed image found: {image_path}")
         with Image.open(path) as image:
-            if max(image.size) > 640:
+            if max(image.size) > max_dimension:
                 raise RuntimeError(f"Oversized deployment image: {image_path}")
             image.verify()
         if number % 1000 == 0 or number == len(index.manifest):
@@ -54,9 +53,11 @@ def validate_index(name: str) -> None:
 
 
 def main() -> None:
-    validate_artifact_checksums()
-    validate_index("clothing")
-    validate_index("outfits")
+    info = json.loads((APP_DIR / "DEPLOYMENT_INFO.json").read_text(encoding="utf-8"))
+    max_dimension = int(info["image_max_dimension"])
+    validate_artifact_checksums(info)
+    validate_index("clothing", max_dimension)
+    validate_index("outfits", max_dimension)
 
     clothing = load_embedding_index("clothing", APP_DIR)
     outfits = load_embedding_index("outfits", APP_DIR)

@@ -3,14 +3,23 @@
 This folder is a self-contained deployment repository. It includes:
 
 - Precomputed, L2-normalized base FashionCLIP embeddings.
+- Adult front-view recommendation candidates from the training split of
+  [`chibifire/zenodo-second-hand-fashion-v3`](https://huggingface.co/datasets/chibifire/zenodo-second-hand-fashion-v3).
 - Only the clothing and representative outfit images referenced by the manifests.
-- WebP display images with a maximum dimension of 640 pixels.
+- WebP display images with a maximum dimension of 512 pixels.
 - A model-free Streamlit runtime: PyTorch and Transformers are not installed or
   loaded on the server.
 
 The embeddings were generated with the base
 `patrickjohncyh/fashion-clip` checkpoint. No fine-tuned classifier weights are
 used.
+
+The second-hand clothing snapshot is pinned to commit
+`d32b983103be67af13365dbfcc9db41faa9aadab`. `Ladies` items map to the app's
+`Women` option and `Men` items map directly; children, unisex items, and the
+publisher's blinded test split are excluded. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for attribution and the
+CC BY 4.0 terms.
 
 ## Validate locally
 
@@ -62,7 +71,7 @@ The app memory-maps the two embedding matrices and serves only the images shown
 for the active session. It does not download the model or calculate embeddings
 in the cloud.
 
-## Important
+## Data attribution
 
-Before publishing the repository or app, confirm that the source image dataset
-license permits the intended public redistribution and use.
+The app footer links to the source dataset and its CC BY 4.0 license. Keep the
+footer and `THIRD_PARTY_NOTICES.md` with redistributed or deployed copies.

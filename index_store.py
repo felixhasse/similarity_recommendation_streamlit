@@ -13,6 +13,8 @@ from recommender import EmbeddingIndex
 
 
 MODEL_ID = "patrickjohncyh/fashion-clip"
+SECOND_HAND_DATASET_ID = "chibifire/zenodo-second-hand-fashion-v3"
+SECOND_HAND_DATASET_REVISION = "d32b983103be67af13365dbfcc9db41faa9aadab"
 FORMAT_VERSION = 1
 INDEX_NAMES = ("clothing", "outfits")
 
@@ -57,6 +59,13 @@ def load_embedding_index(name: str, app_dir: Path) -> EmbeddingIndex:
         or metadata.get("normalized") is not True
     ):
         raise DeploymentDataError(f"{name} metadata is incompatible.")
+    if name == "clothing" and (
+        metadata.get("dataset_id") != SECOND_HAND_DATASET_ID
+        or metadata.get("dataset_revision") != SECOND_HAND_DATASET_REVISION
+    ):
+        raise DeploymentDataError(
+            "clothing metadata does not match the pinned second-hand dataset."
+        )
 
     try:
         embeddings = np.load(embeddings_path, mmap_mode="r", allow_pickle=False)
@@ -80,4 +89,3 @@ def load_embedding_index(name: str, app_dir: Path) -> EmbeddingIndex:
     if "image_path" not in manifest or "gender" not in manifest:
         raise DeploymentDataError(f"{name} manifest is missing required columns.")
     return EmbeddingIndex(manifest=manifest, embeddings=embeddings)
-
