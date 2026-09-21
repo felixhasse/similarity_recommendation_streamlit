@@ -10,7 +10,12 @@ import numpy as np
 from PIL import Image
 
 from index_store import MODEL_SPECS, load_embedding_index, resolve_data_path
-from recommender import aggregate_preference, rank_candidates, rank_candidates_by_type
+from recommender import (
+    aggregate_preference,
+    canonicalize_clothing_type,
+    rank_candidates,
+    rank_candidates_by_type,
+)
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -84,6 +89,18 @@ def main() -> None:
         outfits = load_embedding_index("outfits", APP_DIR, model_key)
         if "Unisex" not in set(clothing.manifest["gender"]):
             raise RuntimeError(f"{model_key} clothing index contains no Unisex items.")
+        raw_types = clothing.manifest["type"].fillna("").astype(str)
+        noncanonical = sorted(
+            {
+                item_type
+                for item_type in raw_types
+                if canonicalize_clothing_type(item_type) != item_type
+            }
+        )
+        if noncanonical:
+            raise RuntimeError(
+                f"{model_key} manifest contains noncanonical types: {noncanonical}"
+            )
         preference = aggregate_preference(
             np.asarray(outfits.embeddings[[0]]),
             np.asarray(outfits.embeddings[[1]]),

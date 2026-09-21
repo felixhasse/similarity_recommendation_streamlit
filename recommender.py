@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,73 @@ import pandas as pd
 EPSILON = 1e-8
 BOTH_GENDERS = "Both"
 ALL_CLOTHING_GENDERS = ("Men", "Women", "Unisex")
+CANONICAL_CLOTHING_TYPES = (
+    "Blazer",
+    "Blouse",
+    "Cardigan",
+    "Clothing item",
+    "Denim jacket",
+    "Dress",
+    "Hoodie",
+    "Jacket",
+    "Jeans",
+    "Nightgown",
+    "Outerwear",
+    "Pajamas",
+    "Rain jacket",
+    "Rain trousers",
+    "Robe",
+    "Shirt",
+    "Shorts",
+    "Skirt",
+    "Sweater",
+    "T-shirt",
+    "Tank top",
+    "Tights",
+    "Top",
+    "Training top",
+    "Trousers",
+    "Tunic",
+    "Vest",
+    "Winter jacket",
+    "Winter trousers",
+)
+
+
+def _clothing_type_key(value: object) -> str:
+    """Return a case-, spacing-, and punctuation-insensitive category key."""
+    if value is None or (not isinstance(value, str) and pd.isna(value)):
+        return ""
+    return re.sub(r"[^a-z0-9]+", "", str(value).casefold())
+
+
+_CANONICAL_CLOTHING_TYPE_BY_KEY = {
+    _clothing_type_key(item_type): item_type
+    for item_type in CANONICAL_CLOTHING_TYPES
+}
+_CANONICAL_CLOTHING_TYPE_BY_KEY.update(
+    {
+        "jacker": "Jacket",
+        "jackett": "Jacket",
+        "pajama": "Pajamas",
+        "pyjama": "Pajamas",
+        "pyjamas": "Pajamas",
+        "teeshirt": "T-shirt",
+        "trouser": "Trousers",
+    }
+)
+
+
+def canonicalize_clothing_type(value: object) -> str:
+    """Return one stable display label for equivalent or misspelled types."""
+    key = _clothing_type_key(value)
+    if not key:
+        return "Clothing item"
+    canonical = _CANONICAL_CLOTHING_TYPE_BY_KEY.get(key)
+    if canonical is not None:
+        return canonical
+    compact = " ".join(str(value).split())
+    return compact[:1].upper() + compact[1:].lower()
 
 
 class RecommendationError(ValueError):
@@ -207,15 +275,18 @@ def rank_candidates_by_type(
     )
     scores = candidate_embeddings @ query
     raw_types = index.manifest.iloc[candidate_positions]["type"]
-    item_types = raw_types.fillna("Clothing item").astype(str).str.strip()
-    item_types = item_types.mask(item_types == "", "Clothing item")
+    item_types = raw_types.map(canonicalize_clothing_type)
 
     results: dict[str, pd.DataFrame] = {}
     for item_type in sorted(item_types.unique(), key=str.casefold):
         type_mask = item_types.to_numpy() == item_type
         type_positions = candidate_positions[type_mask]
         type_scores = scores[type_mask]
-        results[item_type] = _rank_scored_positions(
+        group = _rank_scored_positions(
             index, type_positions, type_scores, top_k
         )
+        group["type"] = item_type
+        if "articleType" in group:
+            group["articleType"] = item_type
+        results[item_type] = group
     return results

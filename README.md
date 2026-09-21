@@ -24,6 +24,10 @@ matches for every available clothing type. See
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for attribution and the
 CC BY 4.0 terms.
 
+Clothing-type grouping is insensitive to capitalization, whitespace, and
+punctuation. Known source spelling variants are mapped to stable labels; for
+example, `Night gown` becomes `Nightgown` and `Jacker` becomes `Jacket`.
+
 ## Validate locally
 
 Use Python 3.11. From this folder:

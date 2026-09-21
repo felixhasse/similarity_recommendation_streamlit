@@ -1,5 +1,5 @@
 {
-  "created_utc": "2026-09-21T15:01:42.528527+00:00",
+  "created_utc": "2026-09-21T16:03:53.650721+00:00",
   "models": [
     {
       "key": "fashionclip",
@@ -36,7 +36,7 @@
   "removed_unreferenced_images": 0,
   "artifact_sha256": {
     "clothing_embeddings.npy": "fe6eaa37473b4e2595cb1a2aa98158453393c4ae979c886135fdbb7bc011cad6",
-    "clothing_manifest.csv": "aa9295bdc5fa201dd7b18721d5c685b0d1df9ad1e2923dba1fac92d4b4fdecac",
+    "clothing_manifest.csv": "199566236094325aeae0bd40f2e518fcf6cf9724fee38521561fff0dca28b6e2",
     "clothing_metadata.json": "40719d4c79288fb21ab4507484c1708110eb8c2b8fc74db0bcdfb5b993b161a2",
     "marqo_fashionsiglip_clothing_embeddings.npy": "406dde780dc9d79d98e5cb6b8a5a160ec72eba8da1d621ec2bc15c48cc7c602c",
     "marqo_fashionsiglip_clothing_metadata.json": "4fcbecacba37a3fe6d16b2571457c9497252c1600be2dd49517ce0169769c061",
@@ -47,7 +47,7 @@
     "outfits_metadata.json": "55713ff78f0c732d0ed84d52758e0297ae445f7d8ca9c6122acb5273c7f71aea"
   },
   "payload_file_count": 37515,
-  "payload_bytes": 630359263,
+  "payload_bytes": 630361352,
   "clothing_dataset": {
     "dataset_id": "chibifire/zenodo-second-hand-fashion-v3",
     "dataset_url": "https://huggingface.co/datasets/chibifire/zenodo-second-hand-fashion-v3",
@@ -75,6 +75,14 @@
     "image_max_dimension": 640,
     "image_quality": 82,
     "image_bytes": 513197166,
-    "created_utc": "2026-09-21T14:47:18.644353+00:00"
+    "created_utc": "2026-09-21T14:47:18.644353+00:00",
+    "clothing_type_normalization": {
+      "case_insensitive": true,
+      "spacing_and_punctuation_insensitive": true,
+      "aliases": {
+        "Jacker": "Jacket",
+        "Night gown": "Nightgown"
+      }
+    }
   }
 }

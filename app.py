@@ -19,6 +19,7 @@ from recommender import (
     EmbeddingIndex,
     RecommendationError,
     aggregate_preference,
+    canonicalize_clothing_type,
     choose_outfit_indices,
     rank_candidates,
     rank_candidates_by_type,
@@ -95,7 +96,9 @@ def _product_text(row: pd.Series) -> str:
 
 
 def _product_details(row: pd.Series) -> str:
-    item_type = row.get("type", row.get("articleType", "Clothing item"))
+    item_type = canonicalize_clothing_type(
+        row.get("type", row.get("articleType", "Clothing item"))
+    )
     colors = row.get("colors", row.get("baseColour", "Unspecified"))
     return f"{item_type} · {colors}"
 
