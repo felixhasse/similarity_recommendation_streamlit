@@ -9,6 +9,8 @@ import pandas as pd
 
 
 EPSILON = 1e-8
+BOTH_GENDERS = "Both"
+ALL_CLOTHING_GENDERS = ("Men", "Women", "Unisex")
 
 
 class RecommendationError(ValueError):
@@ -87,45 +89,61 @@ def choose_outfit_indices(
     if "gender" not in manifest:
         raise RecommendationError("Outfit manifest has no gender column.")
 
-    eligible = np.flatnonzero(manifest["gender"].to_numpy() == gender)
+    generator = rng if rng is not None else np.random.default_rng()
+    manifest_genders = manifest["gender"].to_numpy()
+    if gender == BOTH_GENDERS:
+        masculine = np.flatnonzero(manifest_genders == "Men")
+        feminine = np.flatnonzero(manifest_genders == "Women")
+        masculine_count = count // 2
+        feminine_count = count - masculine_count
+        if count % 2 and generator.random() < 0.5:
+            masculine_count, feminine_count = feminine_count, masculine_count
+        if len(masculine) >= masculine_count and len(feminine) >= feminine_count:
+            selected = np.concatenate(
+                (
+                    generator.choice(
+                        masculine, size=masculine_count, replace=False
+                    ),
+                    generator.choice(feminine, size=feminine_count, replace=False),
+                )
+            )
+            generator.shuffle(selected)
+            return np.asarray(selected, dtype=int)
+        eligible = np.flatnonzero(np.isin(manifest_genders, ("Men", "Women")))
+    else:
+        eligible = np.flatnonzero(manifest_genders == gender)
     if len(eligible) < count:
         raise RecommendationError(
             f"Only {len(eligible)} outfits are available for {gender}; {count} required."
         )
-    generator = rng if rng is not None else np.random.default_rng()
     return np.asarray(generator.choice(eligible, size=count, replace=False), dtype=int)
 
 
-def rank_candidates(
-    preference: np.ndarray,
-    index: EmbeddingIndex,
-    gender: str,
-    top_k: int = 10,
-) -> pd.DataFrame:
-    """Return the highest cosine-similarity candidates for one gender."""
-    if top_k <= 0:
-        raise RecommendationError("top_k must be positive.")
-    if "gender" not in index.manifest:
-        raise RecommendationError("Candidate manifest has no gender column.")
+def _eligible_candidate_positions(
+    manifest: pd.DataFrame, gender: str
+) -> np.ndarray:
+    manifest_genders = manifest["gender"].to_numpy()
+    if gender == BOTH_GENDERS:
+        return np.flatnonzero(np.isin(manifest_genders, ALL_CLOTHING_GENDERS))
+    return np.flatnonzero(manifest_genders == gender)
 
+
+def _normalized_query(preference: np.ndarray, dimension: int) -> np.ndarray:
     query = np.asarray(preference, dtype=np.float32)
-    if query.ndim != 1 or query.shape[0] != index.embeddings.shape[1]:
+    if query.ndim != 1 or query.shape[0] != dimension:
         raise RecommendationError("Preference vector has the wrong dimensions.")
     query_norm = float(np.linalg.norm(query))
     if query_norm < EPSILON:
         raise RecommendationError("Preference vector has a near-zero norm.")
-    query = query / query_norm
+    return query / query_norm
 
-    candidate_positions = np.flatnonzero(
-        index.manifest["gender"].to_numpy() == gender
-    )
-    if not len(candidate_positions):
-        raise RecommendationError(f"No recommendation candidates exist for {gender}.")
 
-    candidate_embeddings = np.asarray(
-        index.embeddings[candidate_positions], dtype=np.float32
-    )
-    scores = candidate_embeddings @ query
+def _rank_scored_positions(
+    index: EmbeddingIndex,
+    candidate_positions: np.ndarray,
+    scores: np.ndarray,
+    top_k: int,
+) -> pd.DataFrame:
     result_count = min(top_k, len(scores))
     if result_count == len(scores):
         local_positions = np.arange(len(scores))
@@ -140,3 +158,64 @@ def rank_candidates(
     results.insert(0, "similarity", scores[local_positions].astype(float))
     return results
 
+
+def rank_candidates(
+    preference: np.ndarray,
+    index: EmbeddingIndex,
+    gender: str,
+    top_k: int = 10,
+) -> pd.DataFrame:
+    """Return the highest cosine-similarity candidates for one gender."""
+    if top_k <= 0:
+        raise RecommendationError("top_k must be positive.")
+    if "gender" not in index.manifest:
+        raise RecommendationError("Candidate manifest has no gender column.")
+
+    query = _normalized_query(preference, index.embeddings.shape[1])
+    candidate_positions = _eligible_candidate_positions(index.manifest, gender)
+    if not len(candidate_positions):
+        raise RecommendationError(f"No recommendation candidates exist for {gender}.")
+
+    candidate_embeddings = np.asarray(
+        index.embeddings[candidate_positions], dtype=np.float32
+    )
+    scores = candidate_embeddings @ query
+    return _rank_scored_positions(index, candidate_positions, scores, top_k)
+
+
+def rank_candidates_by_type(
+    preference: np.ndarray,
+    index: EmbeddingIndex,
+    gender: str,
+    top_k: int = 5,
+) -> dict[str, pd.DataFrame]:
+    """Return the closest candidates within every available clothing type."""
+    if top_k <= 0:
+        raise RecommendationError("top_k must be positive.")
+    if "gender" not in index.manifest:
+        raise RecommendationError("Candidate manifest has no gender column.")
+    if "type" not in index.manifest:
+        raise RecommendationError("Candidate manifest has no type column.")
+
+    query = _normalized_query(preference, index.embeddings.shape[1])
+    candidate_positions = _eligible_candidate_positions(index.manifest, gender)
+    if not len(candidate_positions):
+        raise RecommendationError(f"No recommendation candidates exist for {gender}.")
+
+    candidate_embeddings = np.asarray(
+        index.embeddings[candidate_positions], dtype=np.float32
+    )
+    scores = candidate_embeddings @ query
+    raw_types = index.manifest.iloc[candidate_positions]["type"]
+    item_types = raw_types.fillna("Clothing item").astype(str).str.strip()
+    item_types = item_types.mask(item_types == "", "Clothing item")
+
+    results: dict[str, pd.DataFrame] = {}
+    for item_type in sorted(item_types.unique(), key=str.casefold):
+        type_mask = item_types.to_numpy() == item_type
+        type_positions = candidate_positions[type_mask]
+        type_scores = scores[type_mask]
+        results[item_type] = _rank_scored_positions(
+            index, type_positions, type_scores, top_k
+        )
+    return results

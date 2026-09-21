@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image
 
 from index_store import MODEL_SPECS, load_embedding_index, resolve_data_path
-from recommender import aggregate_preference, rank_candidates
+from recommender import aggregate_preference, rank_candidates, rank_candidates_by_type
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -82,6 +82,8 @@ def main() -> None:
 
         clothing = load_embedding_index("clothing", APP_DIR, model_key)
         outfits = load_embedding_index("outfits", APP_DIR, model_key)
+        if "Unisex" not in set(clothing.manifest["gender"]):
+            raise RuntimeError(f"{model_key} clothing index contains no Unisex items.")
         preference = aggregate_preference(
             np.asarray(outfits.embeddings[[0]]),
             np.asarray(outfits.embeddings[[1]]),
@@ -96,6 +98,24 @@ def main() -> None:
             raise RuntimeError(
                 f"{model_key} recommendation smoke test did not return ten results."
             )
+        combined_results = rank_candidates(
+            preference,
+            clothing,
+            gender="Both",
+            top_k=10,
+        )
+        if len(combined_results) != 10:
+            raise RuntimeError(
+                f"{model_key} combined recommendation smoke test failed."
+            )
+        typed_results = rank_candidates_by_type(
+            preference,
+            clothing,
+            gender="Both",
+            top_k=5,
+        )
+        if not typed_results or any(len(group) > 5 for group in typed_results.values()):
+            raise RuntimeError(f"{model_key} per-type recommendation smoke test failed.")
     print("Deployment validation passed.")
 
 
