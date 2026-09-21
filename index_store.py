@@ -90,6 +90,8 @@ def load_embedding_index(
     if name == "clothing" and (
         metadata.get("dataset_id") != SECOND_HAND_DATASET_ID
         or metadata.get("dataset_revision") != SECOND_HAND_DATASET_REVISION
+        or metadata.get("filters", {}).get("gender")
+        != ["Men", "Women", "Unisex"]
     ):
         raise DeploymentDataError(
             "clothing metadata does not match the pinned second-hand dataset."

@@ -21,13 +21,21 @@ from recommender import (
     aggregate_preference,
     choose_outfit_indices,
     rank_candidates,
+    rank_candidates_by_type,
 )
 
 
 APP_DIR = Path(__file__).resolve().parent
-OUTFIT_COUNT = 15
+DEFAULT_OUTFIT_COUNT = 15
+MIN_OUTFIT_COUNT = 5
+MAX_OUTFIT_COUNT = 30
 RECOMMENDATION_COUNT = 10
-GENDER_OPTIONS = {"Man": "Men", "Woman": "Women"}
+TYPE_RECOMMENDATION_COUNT = 5
+GENDER_OPTIONS = {
+    "Masculine": "Men",
+    "Feminine": "Women",
+    "Both": "Both",
+}
 MODEL_OPTIONS = {spec["label"]: key for key, spec in MODEL_SPECS.items()}
 
 
@@ -66,12 +74,16 @@ def _load_indexes(
     )
 
 
-def _start_rating_session(outfits: EmbeddingIndex, gender: str) -> None:
-    selected = choose_outfit_indices(outfits.manifest, gender, OUTFIT_COUNT)
+def _start_rating_session(
+    outfits: EmbeddingIndex, gender: str, outfit_count: int
+) -> None:
+    selected = choose_outfit_indices(outfits.manifest, gender, outfit_count)
     st.session_state.rating_gender = gender
+    st.session_state.rating_count = outfit_count
     st.session_state.outfit_indices = selected.tolist()
     st.session_state.rating_nonce = secrets.token_hex(6)
     st.session_state.pop("recommendations", None)
+    st.session_state.pop("type_recommendations", None)
     st.session_state.pop("recommendation_signature", None)
 
 
@@ -90,8 +102,8 @@ def _product_details(row: pd.Series) -> str:
 
 st.title("Find your style direction")
 st.write(
-    "Rate 15 outfits and receive ten apparel recommendations shaped by what you "
-    "like—and what you do not."
+    "Choose how many outfits to rate, then receive recommendations shaped by "
+    "what you like—and what you do not."
 )
 
 model_label = st.selectbox(
@@ -109,7 +121,7 @@ except DeploymentDataError as error:
     st.error(f"Deployment data is incomplete: {error}")
     st.stop()
 
-controls = st.columns([1.4, 1, 2.6], vertical_alignment="bottom")
+controls = st.columns([1.5, 1.5, 1, 2.2], vertical_alignment="bottom")
 with controls[0]:
     gender_label = st.radio(
         "Show outfits for",
@@ -118,18 +130,28 @@ with controls[0]:
     )
 gender = GENDER_OPTIONS[gender_label]
 
+with controls[1]:
+    outfit_count = st.slider(
+        "Outfits to rate",
+        min_value=MIN_OUTFIT_COUNT,
+        max_value=MAX_OUTFIT_COUNT,
+        value=DEFAULT_OUTFIT_COUNT,
+        step=1,
+    )
+
 if (
     st.session_state.get("rating_gender") != gender
+    or st.session_state.get("rating_count") != outfit_count
     or "outfit_indices" not in st.session_state
 ):
-    _start_rating_session(outfit_index, gender)
-
-with controls[1]:
-    if st.button("↻ New set", width="stretch"):
-        _start_rating_session(outfit_index, gender)
-        st.rerun()
+    _start_rating_session(outfit_index, gender, outfit_count)
 
 with controls[2]:
+    if st.button("↻ New set", width="stretch"):
+        _start_rating_session(outfit_index, gender, outfit_count)
+        st.rerun()
+
+with controls[3]:
     lambda_negative = st.slider(
         "Dislike weight (lambda)",
         min_value=0.0,
@@ -141,7 +163,7 @@ with controls[2]:
 
 selected_indices = np.asarray(st.session_state.outfit_indices, dtype=int)
 selected_outfits = outfit_index.manifest.iloc[selected_indices]
-st.subheader("Your 15 outfits")
+st.subheader(f"Your {outfit_count} outfits")
 st.caption("Every outfit needs one rating before recommendations can be generated.")
 
 ratings: list[str | None] = []
@@ -150,7 +172,6 @@ for card_number, (position, row) in enumerate(selected_outfits.iterrows(), start
     with card_columns[(card_number - 1) % 3]:
         st.image(
             str(resolve_data_path(row["image_path"], APP_DIR)),
-            caption=f"{card_number}. {row['category']}",
             width="stretch",
         )
         rating = st.radio(
@@ -164,17 +185,21 @@ for card_number, (position, row) in enumerate(selected_outfits.iterrows(), start
         ratings.append(rating)
 
 rated_count = sum(rating is not None for rating in ratings)
-st.progress(rated_count / OUTFIT_COUNT, text=f"{rated_count} of {OUTFIT_COUNT} rated")
+st.progress(
+    rated_count / outfit_count,
+    text=f"{rated_count} of {outfit_count} rated",
+)
 
 current_signature = (tuple(ratings), float(lambda_negative), gender, model_key)
 if st.session_state.get("recommendation_signature") != current_signature:
     st.session_state.pop("recommendations", None)
+    st.session_state.pop("type_recommendations", None)
 
 generate = st.button(
     "Show my recommendations",
     type="primary",
     width="stretch",
-    disabled=rated_count != OUTFIT_COUNT,
+    disabled=rated_count != outfit_count,
 )
 
 if generate:
@@ -193,10 +218,17 @@ if generate:
             gender,
             top_k=RECOMMENDATION_COUNT,
         )
+        type_recommendations = rank_candidates_by_type(
+            preference,
+            clothing_index,
+            gender,
+            top_k=TYPE_RECOMMENDATION_COUNT,
+        )
     except RecommendationError as error:
         st.warning(str(error))
     else:
         st.session_state.recommendations = recommendations
+        st.session_state.type_recommendations = type_recommendations
         st.session_state.recommendation_signature = current_signature
 
 if "recommendations" in st.session_state:
@@ -219,13 +251,35 @@ if "recommendations" in st.session_state:
                 f"Similarity: {row['similarity']:.3f}"
             )
 
+    st.divider()
+    st.subheader("Closest matches by clothing type")
+    st.caption(
+        f"Up to {TYPE_RECOMMENDATION_COUNT} matches for every available type in "
+        "the selected catalog."
+    )
+    for item_type, type_results in st.session_state.type_recommendations.items():
+        st.markdown(f"#### {item_type}")
+        type_columns = st.columns(5)
+        for rank, (_, row) in enumerate(type_results.iterrows(), start=1):
+            with type_columns[(rank - 1) % 5]:
+                st.image(
+                    str(resolve_data_path(row["image_path"], APP_DIR)),
+                    width="stretch",
+                )
+                st.markdown(f"**{rank}. {_product_text(row)}**")
+                st.caption(
+                    f"{_product_details(row)}  \n"
+                    f"Similarity: {row['similarity']:.3f}"
+                )
+
 st.divider()
 st.caption(
     "Precomputed embeddings: [patrickjohncyh/fashion-clip]"
     "(https://huggingface.co/patrickjohncyh/fashion-clip) and "
     "[Marqo/marqo-fashionSigLIP]"
     "(https://huggingface.co/Marqo/marqo-fashionSigLIP) · Recommendations: "
-    "adult front views from the [Second-Hand Fashion Dataset v3]"
+    "adult and Unisex front views from the [Second-Hand Fashion Dataset v3]"
     "(https://huggingface.co/datasets/chibifire/zenodo-second-hand-fashion-v3) "
+    "including Unisex items when Both is selected "
     "([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/))"
 )
