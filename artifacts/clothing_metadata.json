@@ -6,19 +6,17 @@
   "model_id": "patrickjohncyh/fashion-clip",
   "model_revision": null,
   "model_license": null,
-  "row_count": 24501,
+  "row_count": 23273,
   "embedding_dimension": 512,
   "normalized": true,
   "filters": {
     "gender": [
       "Men",
-      "Women",
-      "Unisex"
+      "Women"
     ],
     "category": {
       "Men": "Men",
-      "Ladies": "Women",
-      "Unisex": "Unisex"
+      "Ladies": "Women"
     },
     "view": "front",
     "splits": [

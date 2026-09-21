@@ -1,5 +1,5 @@
 {
-  "created_utc": "2026-09-21T15:01:42.528527+00:00",
+  "created_utc": "2026-09-18T13:30:40.271320+00:00",
   "models": [
     {
       "key": "fashionclip",
@@ -23,9 +23,9 @@
   "image_quality": 76,
   "indexes": {
     "clothing": {
-      "image_count": 24501,
-      "original_image_bytes": 513197166,
-      "compressed_image_bytes": 296487268
+      "image_count": 23273,
+      "original_image_bytes": 488542372,
+      "compressed_image_bytes": 282162084
     },
     "outfits": {
       "image_count": 12994,
@@ -35,19 +35,19 @@
   },
   "removed_unreferenced_images": 0,
   "artifact_sha256": {
-    "clothing_embeddings.npy": "fe6eaa37473b4e2595cb1a2aa98158453393c4ae979c886135fdbb7bc011cad6",
-    "clothing_manifest.csv": "aa9295bdc5fa201dd7b18721d5c685b0d1df9ad1e2923dba1fac92d4b4fdecac",
-    "clothing_metadata.json": "40719d4c79288fb21ab4507484c1708110eb8c2b8fc74db0bcdfb5b993b161a2",
-    "marqo_fashionsiglip_clothing_embeddings.npy": "406dde780dc9d79d98e5cb6b8a5a160ec72eba8da1d621ec2bc15c48cc7c602c",
-    "marqo_fashionsiglip_clothing_metadata.json": "4fcbecacba37a3fe6d16b2571457c9497252c1600be2dd49517ce0169769c061",
+    "clothing_embeddings.npy": "b5e91abbb551af7d75057cf1760ea67e679dffe09ba1d7affdc9fbb5bbdb3e13",
+    "clothing_manifest.csv": "37fa83e829110c694adbd638ecc8b13b8da826326826a7fe2534f77a602f602e",
+    "clothing_metadata.json": "9601ea2fa76ac793ecef26b1e3b074b0450e217184c21a37df5a81d63c5f64d2",
+    "marqo_fashionsiglip_clothing_embeddings.npy": "137a11744292aca7dc9268296f338eedd8412f637434c052e6bd4e7e2a0ea076",
+    "marqo_fashionsiglip_clothing_metadata.json": "5141ad12cb2292d01c512ae98093aa1e9f53e430f003e7f30d0a9cc6a3c81145",
     "marqo_fashionsiglip_outfits_embeddings.npy": "1b6a2e37a8f1b352771b65f4996a5de9edb576865aace8bcbfa374358235d989",
     "marqo_fashionsiglip_outfits_metadata.json": "207006393ff2f322c49b4ff11db8d2ab6b6ad88f3656af56a314ea89443879fe",
     "outfits_embeddings.npy": "4b24c87e3d65625e0a4c5eb22086ebb32e9ee2670f8fa096a4006a2e1f8dc7b4",
     "outfits_manifest.csv": "2cd919994c1d7c55b48034a42c9236139f784d0b4523b62e8dda760f0961e339",
     "outfits_metadata.json": "55713ff78f0c732d0ed84d52758e0297ae445f7d8ca9c6122acb5273c7f71aea"
   },
-  "payload_file_count": 37515,
-  "payload_bytes": 630359263,
+  "payload_file_count": 36287,
+  "payload_bytes": 609436818,
   "clothing_dataset": {
     "dataset_id": "chibifire/zenodo-second-hand-fashion-v3",
     "dataset_url": "https://huggingface.co/datasets/chibifire/zenodo-second-hand-fashion-v3",
@@ -58,23 +58,21 @@
       "train"
     ],
     "source_rows_scanned": 28474,
-    "recommendation_front_images": 24501,
+    "adult_front_images": 23273,
     "gender_counts": {
       "Men": 3839,
-      "Unisex": 1228,
       "Women": 19434
     },
     "category_mapping": {
       "Ladies": "Women",
       "Women": "Women",
       "Men": "Men",
-      "Mens": "Men",
-      "Unisex": "Unisex"
+      "Mens": "Men"
     },
     "image_format": "WebP",
     "image_max_dimension": 640,
     "image_quality": 82,
-    "image_bytes": 513197166,
-    "created_utc": "2026-09-21T14:47:18.644353+00:00"
+    "image_bytes": 488542372,
+    "created_utc": "2026-09-17T16:28:04.576585+00:00"
   }
 }

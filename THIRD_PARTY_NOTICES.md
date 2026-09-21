@@ -13,7 +13,7 @@ and Myrorna AB.
 - License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
 
 Changes made for this app: only the training split is used; rows are limited to
-the `Ladies`, `Men`, and `Unisex` categories; only each garment's front view is
+the adult `Ladies` and `Men` categories; only each garment's front view is
 retained; the images are resized and re-encoded as WebP; and normalized image
 embeddings are derived with the base FashionCLIP model and Marqo
 FashionSigLIP.

@@ -3,7 +3,7 @@
 This folder is a self-contained deployment repository. It includes:
 
 - Precomputed, L2-normalized FashionCLIP and Marqo FashionSigLIP embeddings.
-- `Ladies`, `Men`, and `Unisex` front-view recommendation candidates from the training split of
+- Adult front-view recommendation candidates from the training split of
   [`chibifire/zenodo-second-hand-fashion-v3`](https://huggingface.co/datasets/chibifire/zenodo-second-hand-fashion-v3).
 - Only the clothing and representative outfit images referenced by the manifests.
 - WebP display images with a maximum dimension of 512 pixels.
@@ -16,11 +16,9 @@ and `Marqo/marqo-fashionSigLIP`, pinned to revision
 classifier weights are used.
 
 The second-hand clothing snapshot is pinned to commit
-`d32b983103be67af13365dbfcc9db41faa9aadab`. `Ladies` items map to Feminine,
-`Men` items map to Masculine, and the Both option searches those categories plus
-`Unisex`; children and the publisher's blinded test split are excluded. Users
-rate between 5 and 30 outfits, then receive ten overall matches and up to five
-matches for every available clothing type. See
+`d32b983103be67af13365dbfcc9db41faa9aadab`. `Ladies` items map to the app's
+`Women` option and `Men` items map directly; children, unisex items, and the
+publisher's blinded test split are excluded. See
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for attribution and the
 CC BY 4.0 terms.
 
