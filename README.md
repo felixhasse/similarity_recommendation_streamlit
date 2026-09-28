@@ -24,6 +24,11 @@ matches for every available clothing type. See
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for attribution and the
 CC BY 4.0 terms.
 
+Users can select *Mean embedding* or *Average image similarities*. The second
+method scores each item by its average cosine similarity to liked outfits minus
+`lambda` times its average similarity to disliked outfits. Both methods produce
+the same ranking for fixed ratings; their displayed scores have different scales.
+
 Clothing-type grouping is insensitive to capitalization, whitespace, and
 punctuation. Known source spelling variants are mapped to stable labels; for
 example, `Night gown` becomes `Nightgown` and `Jacker` becomes `Jacket`.

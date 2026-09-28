@@ -15,6 +15,7 @@ from recommender import (
     canonicalize_clothing_type,
     rank_candidates,
     rank_candidates_by_type,
+    rank_pairwise_candidates,
 )
 
 
@@ -133,6 +134,16 @@ def main() -> None:
         )
         if not typed_results or any(len(group) > 5 for group in typed_results.values()):
             raise RuntimeError(f"{model_key} per-type recommendation smoke test failed.")
+        pairwise_results, pairwise_types = rank_pairwise_candidates(
+            np.asarray(outfits.embeddings[[0]]),
+            np.asarray(outfits.embeddings[[1]]),
+            clothing,
+            gender="Both",
+            top_k=10,
+            top_k_by_type=5,
+        )
+        if len(pairwise_results) != 10 or set(pairwise_types) != set(typed_results):
+            raise RuntimeError(f"{model_key} pairwise recommendation smoke test failed.")
     print("Deployment validation passed.")
 
 

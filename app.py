@@ -23,6 +23,7 @@ from recommender import (
     choose_outfit_indices,
     rank_candidates,
     rank_candidates_by_type,
+    rank_pairwise_candidates,
 )
 
 
@@ -38,6 +39,10 @@ GENDER_OPTIONS = {
     "Both": "Both",
 }
 MODEL_OPTIONS = {spec["label"]: key for key, spec in MODEL_SPECS.items()}
+SIMILARITY_OPTIONS = {
+    "Mean embedding": "mean_embedding",
+    "Average image similarities": "pairwise",
+}
 
 
 st.set_page_config(
@@ -118,6 +123,20 @@ model_label = st.selectbox(
     ),
 )
 model_key = MODEL_OPTIONS[model_label]
+similarity_label = st.selectbox(
+    "Similarity calculation",
+    list(SIMILARITY_OPTIONS),
+    help=(
+        "Mean embedding compares each item with a normalized preference vector. "
+        "Average image similarities takes each item's mean cosine similarity to "
+        "liked outfits and subtracts lambda times its mean similarity to disliked outfits."
+    ),
+)
+similarity_method = SIMILARITY_OPTIONS[similarity_label]
+st.caption(
+    "With cosine similarity, both calculations rank items in the same order; "
+    "their displayed scores use different scales."
+)
 try:
     clothing_index, outfit_index = _load_indexes(str(APP_DIR), model_key)
 except DeploymentDataError as error:
@@ -161,7 +180,7 @@ with controls[3]:
         max_value=3.0,
         value=1.0,
         step=0.1,
-        help="1.0 gives the average disliked embedding its full negative weight.",
+        help="1.0 gives disliked outfits their full negative weight.",
     )
 
 selected_indices = np.asarray(st.session_state.outfit_indices, dtype=int)
@@ -193,7 +212,13 @@ st.progress(
     text=f"{rated_count} of {outfit_count} rated",
 )
 
-current_signature = (tuple(ratings), float(lambda_negative), gender, model_key)
+current_signature = (
+    tuple(ratings),
+    float(lambda_negative),
+    gender,
+    model_key,
+    similarity_method,
+)
 if st.session_state.get("recommendation_signature") != current_signature:
     st.session_state.pop("recommendations", None)
     st.session_state.pop("type_recommendations", None)
@@ -209,24 +234,37 @@ if generate:
     selected_embeddings = np.asarray(outfit_index.embeddings[selected_indices])
     liked_mask = np.asarray([rating == "Like" for rating in ratings])
     disliked_mask = ~liked_mask
+    liked_embeddings = selected_embeddings[liked_mask]
+    disliked_embeddings = selected_embeddings[disliked_mask]
     try:
-        preference = aggregate_preference(
-            selected_embeddings[liked_mask],
-            selected_embeddings[disliked_mask],
-            lambda_negative=lambda_negative,
-        )
-        recommendations = rank_candidates(
-            preference,
-            clothing_index,
-            gender,
-            top_k=RECOMMENDATION_COUNT,
-        )
-        type_recommendations = rank_candidates_by_type(
-            preference,
-            clothing_index,
-            gender,
-            top_k=TYPE_RECOMMENDATION_COUNT,
-        )
+        if similarity_method == "mean_embedding":
+            preference = aggregate_preference(
+                liked_embeddings,
+                disliked_embeddings,
+                lambda_negative=lambda_negative,
+            )
+            recommendations = rank_candidates(
+                preference,
+                clothing_index,
+                gender,
+                top_k=RECOMMENDATION_COUNT,
+            )
+            type_recommendations = rank_candidates_by_type(
+                preference,
+                clothing_index,
+                gender,
+                top_k=TYPE_RECOMMENDATION_COUNT,
+            )
+        else:
+            recommendations, type_recommendations = rank_pairwise_candidates(
+                liked_embeddings,
+                disliked_embeddings,
+                clothing_index,
+                gender,
+                lambda_negative=lambda_negative,
+                top_k=RECOMMENDATION_COUNT,
+                top_k_by_type=TYPE_RECOMMENDATION_COUNT,
+            )
     except RecommendationError as error:
         st.warning(str(error))
     else:
@@ -236,11 +274,19 @@ if generate:
 
 if "recommendations" in st.session_state:
     recommendations = st.session_state.recommendations
+    score_label = "Similarity" if similarity_method == "mean_embedding" else "Score"
     st.divider()
     st.subheader("Your closest matches")
-    st.caption(
-        f"Ranked by cosine similarity to your normalized {model_label} preference vector."
-    )
+    if similarity_method == "mean_embedding":
+        st.caption(
+            f"Ranked by cosine similarity to your normalized {model_label} "
+            "preference vector."
+        )
+    else:
+        st.caption(
+            "Score = mean cosine similarity to liked outfits − λ × mean cosine "
+            "similarity to disliked outfits."
+        )
     result_columns = st.columns(5)
     for rank, (_, row) in enumerate(recommendations.iterrows(), start=1):
         with result_columns[(rank - 1) % 5]:
@@ -251,7 +297,7 @@ if "recommendations" in st.session_state:
             st.markdown(f"**{rank}. {_product_text(row)}**")
             st.caption(
                 f"{_product_details(row)}  \n"
-                f"Similarity: {row['similarity']:.3f}"
+                f"{score_label}: {row['similarity']:.3f}"
             )
 
     st.divider()
@@ -272,7 +318,7 @@ if "recommendations" in st.session_state:
                 st.markdown(f"**{rank}. {_product_text(row)}**")
                 st.caption(
                     f"{_product_details(row)}  \n"
-                    f"Similarity: {row['similarity']:.3f}"
+                    f"{score_label}: {row['similarity']:.3f}"
                 )
 
 st.divider()

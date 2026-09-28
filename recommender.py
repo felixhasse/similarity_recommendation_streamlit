@@ -227,6 +227,28 @@ def _rank_scored_positions(
     return results
 
 
+def _rank_scored_positions_by_type(
+    index: EmbeddingIndex,
+    candidate_positions: np.ndarray,
+    scores: np.ndarray,
+    top_k: int,
+) -> dict[str, pd.DataFrame]:
+    raw_types = index.manifest.iloc[candidate_positions]["type"]
+    item_types = raw_types.map(canonicalize_clothing_type)
+
+    results: dict[str, pd.DataFrame] = {}
+    for item_type in sorted(item_types.unique(), key=str.casefold):
+        type_mask = item_types.to_numpy() == item_type
+        group = _rank_scored_positions(
+            index, candidate_positions[type_mask], scores[type_mask], top_k
+        )
+        group["type"] = item_type
+        if "articleType" in group:
+            group["articleType"] = item_type
+        results[item_type] = group
+    return results
+
+
 def rank_candidates(
     preference: np.ndarray,
     index: EmbeddingIndex,
@@ -274,19 +296,66 @@ def rank_candidates_by_type(
         index.embeddings[candidate_positions], dtype=np.float32
     )
     scores = candidate_embeddings @ query
-    raw_types = index.manifest.iloc[candidate_positions]["type"]
-    item_types = raw_types.map(canonicalize_clothing_type)
+    return _rank_scored_positions_by_type(index, candidate_positions, scores, top_k)
 
-    results: dict[str, pd.DataFrame] = {}
-    for item_type in sorted(item_types.unique(), key=str.casefold):
-        type_mask = item_types.to_numpy() == item_type
-        type_positions = candidate_positions[type_mask]
-        type_scores = scores[type_mask]
-        group = _rank_scored_positions(
-            index, type_positions, type_scores, top_k
+
+def rank_pairwise_candidates(
+    liked_embeddings: np.ndarray,
+    disliked_embeddings: np.ndarray,
+    index: EmbeddingIndex,
+    gender: str,
+    lambda_negative: float = 1.0,
+    top_k: int = 10,
+    top_k_by_type: int = 5,
+) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+    """Rank candidates by mean liked cosine minus weighted mean disliked cosine."""
+    if top_k <= 0 or top_k_by_type <= 0:
+        raise RecommendationError("Result counts must be positive.")
+    if not np.isfinite(lambda_negative) or lambda_negative < 0:
+        raise RecommendationError("Lambda must be a finite, non-negative number.")
+    if "gender" not in index.manifest or "type" not in index.manifest:
+        raise RecommendationError("Candidate manifest needs gender and type columns.")
+
+    liked = np.asarray(liked_embeddings, dtype=np.float32)
+    disliked = np.asarray(disliked_embeddings, dtype=np.float32)
+    dimension = index.embeddings.shape[1]
+    if (
+        liked.ndim != 2
+        or disliked.ndim != 2
+        or liked.shape[1] != dimension
+        or disliked.shape[1] != dimension
+    ):
+        raise RecommendationError("Rated embeddings have the wrong dimensions.")
+    if not len(liked) and not len(disliked):
+        raise RecommendationError("At least one rating is required.")
+
+    liked = normalize_rows(liked) if len(liked) else liked
+    disliked = normalize_rows(disliked) if len(disliked) else disliked
+    positive_mean = liked.mean(axis=0) if len(liked) else np.zeros(dimension)
+    negative_mean = disliked.mean(axis=0) if len(disliked) else np.zeros(dimension)
+    if np.linalg.norm(positive_mean - lambda_negative * negative_mean) < EPSILON:
+        raise RecommendationError(
+            "The ratings cancel each other out; change a rating or increase lambda."
         )
-        group["type"] = item_type
-        if "articleType" in group:
-            group["articleType"] = item_type
-        results[item_type] = group
-    return results
+
+    candidate_positions = _eligible_candidate_positions(index.manifest, gender)
+    if not len(candidate_positions):
+        raise RecommendationError(f"No recommendation candidates exist for {gender}.")
+    candidates = np.asarray(index.embeddings[candidate_positions], dtype=np.float32)
+    candidate_norms = np.linalg.norm(candidates, axis=1)
+    if np.any(candidate_norms < EPSILON):
+        raise RecommendationError("At least one candidate has a near-zero norm.")
+
+    def mean_cosines(rated: np.ndarray) -> np.ndarray:
+        if not len(rated):
+            return np.zeros(len(candidates), dtype=np.float32)
+        # Each matrix cell is the cosine similarity of one candidate and one
+        # rated image. Divide by candidate norm; rated rows are unit vectors.
+        return (candidates @ rated.T).mean(axis=1) / candidate_norms
+
+    scores = mean_cosines(liked) - lambda_negative * mean_cosines(disliked)
+    overall = _rank_scored_positions(index, candidate_positions, scores, top_k)
+    by_type = _rank_scored_positions_by_type(
+        index, candidate_positions, scores, top_k_by_type
+    )
+    return overall, by_type
