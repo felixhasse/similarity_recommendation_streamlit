@@ -42,6 +42,7 @@ MODEL_OPTIONS = {spec["label"]: key for key, spec in MODEL_SPECS.items()}
 SIMILARITY_OPTIONS = {
     "Mean embedding": "mean_embedding",
     "Average image similarities": "pairwise",
+    "Closest examples": "nearest",
 }
 
 
@@ -129,13 +130,15 @@ similarity_label = st.selectbox(
     help=(
         "Mean embedding compares each item with a normalized preference vector. "
         "Average image similarities takes each item's mean cosine similarity to "
-        "liked outfits and subtracts lambda times its mean similarity to disliked outfits."
+        "liked outfits and subtracts lambda times its mean similarity to disliked outfits. "
+        "The Closest examples method uses the two nearest liked outfits and "
+        "the nearest disliked outfit."
     ),
 )
 similarity_method = SIMILARITY_OPTIONS[similarity_label]
 st.caption(
-    "With cosine similarity, both calculations rank items in the same order; "
-    "their displayed scores use different scales."
+    "The first two methods rank items in the same order, with different score "
+    "scales. Closest examples can change the ranking."
 )
 try:
     clothing_index, outfit_index = _load_indexes(str(APP_DIR), model_key)
@@ -264,6 +267,7 @@ if generate:
                 lambda_negative=lambda_negative,
                 top_k=RECOMMENDATION_COUNT,
                 top_k_by_type=TYPE_RECOMMENDATION_COUNT,
+                aggregation="nearest" if similarity_method == "nearest" else "mean",
             )
     except RecommendationError as error:
         st.warning(str(error))
@@ -282,10 +286,16 @@ if "recommendations" in st.session_state:
             f"Ranked by cosine similarity to your normalized {model_label} "
             "preference vector."
         )
-    else:
+    elif similarity_method == "pairwise":
         st.caption(
             "Score = mean cosine similarity to liked outfits − λ × mean cosine "
             "similarity to disliked outfits."
+        )
+    else:
+        st.caption(
+            "Score = mean cosine similarity to the two closest liked outfits "
+            "− λ × cosine similarity to the closest disliked outfit. "
+            "A missing rating group contributes zero."
         )
     result_columns = st.columns(5)
     for rank, (_, row) in enumerate(recommendations.iterrows(), start=1):

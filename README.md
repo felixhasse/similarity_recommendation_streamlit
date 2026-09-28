@@ -24,10 +24,14 @@ matches for every available clothing type. See
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for attribution and the
 CC BY 4.0 terms.
 
-Users can select *Mean embedding* or *Average image similarities*. The second
-method scores each item by its average cosine similarity to liked outfits minus
-`lambda` times its average similarity to disliked outfits. Both methods produce
-the same ranking for fixed ratings; their displayed scores have different scales.
+Users can select *Mean embedding*, *Average image similarities*, or *Closest
+examples*. The second method scores each item by its average cosine similarity
+to liked outfits minus `lambda` times its average similarity to disliked outfits.
+These first two methods produce the same ranking for fixed ratings; their
+displayed scores have different scales. *Closest examples* uses the mean
+similarity to each item's two closest liked outfits (or one if only one is liked)
+minus `lambda` times the similarity to its closest disliked outfit. Empty rating
+groups contribute zero. This third method can produce a different ranking.
 
 Clothing-type grouping is insensitive to capitalization, whitespace, and
 punctuation. Known source spelling variants are mapped to stable labels; for

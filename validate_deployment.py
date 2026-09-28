@@ -144,6 +144,17 @@ def main() -> None:
         )
         if len(pairwise_results) != 10 or set(pairwise_types) != set(typed_results):
             raise RuntimeError(f"{model_key} pairwise recommendation smoke test failed.")
+        nearest_results, nearest_types = rank_pairwise_candidates(
+            np.asarray(outfits.embeddings[[0]]),
+            np.asarray(outfits.embeddings[[1]]),
+            clothing,
+            gender="Both",
+            top_k=10,
+            top_k_by_type=5,
+            aggregation="nearest",
+        )
+        if len(nearest_results) != 10 or set(nearest_types) != set(typed_results):
+            raise RuntimeError(f"{model_key} closest-examples smoke test failed.")
     print("Deployment validation passed.")
 
 

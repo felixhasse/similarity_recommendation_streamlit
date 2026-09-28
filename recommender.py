@@ -307,10 +307,13 @@ def rank_pairwise_candidates(
     lambda_negative: float = 1.0,
     top_k: int = 10,
     top_k_by_type: int = 5,
+    aggregation: str = "mean",
 ) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
-    """Rank candidates by mean liked cosine minus weighted mean disliked cosine."""
+    """Rank by average cosines or by the closest rated examples."""
     if top_k <= 0 or top_k_by_type <= 0:
         raise RecommendationError("Result counts must be positive.")
+    if aggregation not in ("mean", "nearest"):
+        raise RecommendationError("Unknown rating-similarity aggregation.")
     if not np.isfinite(lambda_negative) or lambda_negative < 0:
         raise RecommendationError("Lambda must be a finite, non-negative number.")
     if "gender" not in index.manifest or "type" not in index.manifest:
@@ -331,12 +334,13 @@ def rank_pairwise_candidates(
 
     liked = normalize_rows(liked) if len(liked) else liked
     disliked = normalize_rows(disliked) if len(disliked) else disliked
-    positive_mean = liked.mean(axis=0) if len(liked) else np.zeros(dimension)
-    negative_mean = disliked.mean(axis=0) if len(disliked) else np.zeros(dimension)
-    if np.linalg.norm(positive_mean - lambda_negative * negative_mean) < EPSILON:
-        raise RecommendationError(
-            "The ratings cancel each other out; change a rating or increase lambda."
-        )
+    if aggregation == "mean":
+        positive_mean = liked.mean(axis=0) if len(liked) else np.zeros(dimension)
+        negative_mean = disliked.mean(axis=0) if len(disliked) else np.zeros(dimension)
+        if np.linalg.norm(positive_mean - lambda_negative * negative_mean) < EPSILON:
+            raise RecommendationError(
+                "The ratings cancel each other out; change a rating or increase lambda."
+            )
 
     candidate_positions = _eligible_candidate_positions(index.manifest, gender)
     if not len(candidate_positions):
@@ -346,14 +350,47 @@ def rank_pairwise_candidates(
     if np.any(candidate_norms < EPSILON):
         raise RecommendationError("At least one candidate has a near-zero norm.")
 
-    def mean_cosines(rated: np.ndarray) -> np.ndarray:
+    def candidate_cosines(rated: np.ndarray) -> np.ndarray:
         if not len(rated):
-            return np.zeros(len(candidates), dtype=np.float32)
+            return np.empty((len(candidates), 0), dtype=np.float32)
         # Each matrix cell is the cosine similarity of one candidate and one
         # rated image. Divide by candidate norm; rated rows are unit vectors.
-        return (candidates @ rated.T).mean(axis=1) / candidate_norms
+        return (candidates @ rated.T) / candidate_norms[:, None]
 
-    scores = mean_cosines(liked) - lambda_negative * mean_cosines(disliked)
+    liked_cosines = candidate_cosines(liked)
+    disliked_cosines = candidate_cosines(disliked)
+    if aggregation == "nearest":
+        # Preserve distinct liked styles by matching each item to its two
+        # closest likes, while its closest dislike provides the penalty.
+        like_count = min(2, liked_cosines.shape[1])
+        liked_scores = (
+            np.partition(liked_cosines, -like_count, axis=1)[:, -like_count:].mean(
+                axis=1
+            )
+            if like_count
+            else np.zeros(len(candidates), dtype=np.float32)
+        )
+        disliked_scores = (
+            disliked_cosines.max(axis=1)
+            if disliked_cosines.shape[1]
+            else np.zeros(len(candidates), dtype=np.float32)
+        )
+    else:
+        liked_scores = (
+            liked_cosines.mean(axis=1)
+            if liked_cosines.shape[1]
+            else np.zeros(len(candidates), dtype=np.float32)
+        )
+        disliked_scores = (
+            disliked_cosines.mean(axis=1)
+            if disliked_cosines.shape[1]
+            else np.zeros(len(candidates), dtype=np.float32)
+        )
+    scores = liked_scores - lambda_negative * disliked_scores
+    if aggregation == "nearest" and np.all(np.abs(scores) < EPSILON):
+        raise RecommendationError(
+            "The ratings provide no ranking signal; change a rating or increase lambda."
+        )
     overall = _rank_scored_positions(index, candidate_positions, scores, top_k)
     by_type = _rank_scored_positions_by_type(
         index, candidate_positions, scores, top_k_by_type
