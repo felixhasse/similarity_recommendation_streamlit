@@ -24,6 +24,7 @@ from recommender import (
     rank_candidates,
     rank_candidates_by_type,
     rank_pairwise_candidates,
+    rank_random_candidates,
 )
 
 
@@ -43,6 +44,7 @@ SIMILARITY_OPTIONS = {
     "Mean embedding": "mean_embedding",
     "Average image similarities": "pairwise",
     "Closest examples": "nearest",
+    "Random": "random",
 }
 
 
@@ -111,8 +113,7 @@ def _product_details(row: pd.Series) -> str:
 
 st.title("Find your style direction")
 st.write(
-    "Choose how many outfits to rate, then receive recommendations shaped by "
-    "what you like—and what you do not."
+    "Rate outfits for personalized matches, or use Random for an unrated baseline."
 )
 
 model_label = st.selectbox(
@@ -132,13 +133,14 @@ similarity_label = st.selectbox(
         "Average image similarities takes each item's mean cosine similarity to "
         "liked outfits and subtracts lambda times its mean similarity to disliked outfits. "
         "The Closest examples method uses the two nearest liked outfits and "
-        "the nearest disliked outfit."
+        "the nearest disliked outfit. Random assigns an independent uniform "
+        "score to every eligible item and ignores ratings and embeddings."
     ),
 )
 similarity_method = SIMILARITY_OPTIONS[similarity_label]
 st.caption(
     "The first two methods rank items in the same order, with different score "
-    "scales. Closest examples can change the ranking."
+    "scales. Closest examples can change the ranking; Random is a baseline."
 )
 try:
     clothing_index, outfit_index = _load_indexes(str(APP_DIR), model_key)
@@ -184,12 +186,17 @@ with controls[3]:
         value=1.0,
         step=0.1,
         help="1.0 gives disliked outfits their full negative weight.",
+        disabled=similarity_method == "random",
     )
 
 selected_indices = np.asarray(st.session_state.outfit_indices, dtype=int)
 selected_outfits = outfit_index.manifest.iloc[selected_indices]
 st.subheader(f"Your {outfit_count} outfits")
-st.caption("Every outfit needs one rating before recommendations can be generated.")
+st.caption(
+    "Ratings are optional and ignored in Random mode."
+    if similarity_method == "random"
+    else "Every outfit needs one rating before recommendations can be generated."
+)
 
 ratings: list[str | None] = []
 card_columns = st.columns(3)
@@ -210,65 +217,71 @@ for card_number, (position, row) in enumerate(selected_outfits.iterrows(), start
         ratings.append(rating)
 
 rated_count = sum(rating is not None for rating in ratings)
-st.progress(
-    rated_count / outfit_count,
-    text=f"{rated_count} of {outfit_count} rated",
-)
+if similarity_method != "random":
+    st.progress(
+        rated_count / outfit_count,
+        text=f"{rated_count} of {outfit_count} rated",
+    )
 
 current_signature = (
-    tuple(ratings),
-    float(lambda_negative),
-    gender,
-    model_key,
-    similarity_method,
+    ("random", gender)
+    if similarity_method == "random"
+    else (tuple(ratings), float(lambda_negative), gender, model_key, similarity_method)
 )
 if st.session_state.get("recommendation_signature") != current_signature:
     st.session_state.pop("recommendations", None)
     st.session_state.pop("type_recommendations", None)
 
 generate = st.button(
-    "Show my recommendations",
+    "Show random picks" if similarity_method == "random" else "Show my recommendations",
     type="primary",
     width="stretch",
-    disabled=rated_count != outfit_count,
+    disabled=similarity_method != "random" and rated_count != outfit_count,
 )
 
 if generate:
-    selected_embeddings = np.asarray(outfit_index.embeddings[selected_indices])
-    liked_mask = np.asarray([rating == "Like" for rating in ratings])
-    disliked_mask = ~liked_mask
-    liked_embeddings = selected_embeddings[liked_mask]
-    disliked_embeddings = selected_embeddings[disliked_mask]
     try:
-        if similarity_method == "mean_embedding":
-            preference = aggregate_preference(
-                liked_embeddings,
-                disliked_embeddings,
-                lambda_negative=lambda_negative,
-            )
-            recommendations = rank_candidates(
-                preference,
+        if similarity_method == "random":
+            recommendations, type_recommendations = rank_random_candidates(
                 clothing_index,
                 gender,
-                top_k=RECOMMENDATION_COUNT,
-            )
-            type_recommendations = rank_candidates_by_type(
-                preference,
-                clothing_index,
-                gender,
-                top_k=TYPE_RECOMMENDATION_COUNT,
-            )
-        else:
-            recommendations, type_recommendations = rank_pairwise_candidates(
-                liked_embeddings,
-                disliked_embeddings,
-                clothing_index,
-                gender,
-                lambda_negative=lambda_negative,
                 top_k=RECOMMENDATION_COUNT,
                 top_k_by_type=TYPE_RECOMMENDATION_COUNT,
-                aggregation="nearest" if similarity_method == "nearest" else "mean",
             )
+        else:
+            selected_embeddings = np.asarray(outfit_index.embeddings[selected_indices])
+            liked_mask = np.asarray([rating == "Like" for rating in ratings])
+            liked_embeddings = selected_embeddings[liked_mask]
+            disliked_embeddings = selected_embeddings[~liked_mask]
+            if similarity_method == "mean_embedding":
+                preference = aggregate_preference(
+                    liked_embeddings,
+                    disliked_embeddings,
+                    lambda_negative=lambda_negative,
+                )
+                recommendations = rank_candidates(
+                    preference,
+                    clothing_index,
+                    gender,
+                    top_k=RECOMMENDATION_COUNT,
+                )
+                type_recommendations = rank_candidates_by_type(
+                    preference,
+                    clothing_index,
+                    gender,
+                    top_k=TYPE_RECOMMENDATION_COUNT,
+                )
+            else:
+                recommendations, type_recommendations = rank_pairwise_candidates(
+                    liked_embeddings,
+                    disliked_embeddings,
+                    clothing_index,
+                    gender,
+                    lambda_negative=lambda_negative,
+                    top_k=RECOMMENDATION_COUNT,
+                    top_k_by_type=TYPE_RECOMMENDATION_COUNT,
+                    aggregation="nearest" if similarity_method == "nearest" else "mean",
+                )
     except RecommendationError as error:
         st.warning(str(error))
     else:
@@ -278,10 +291,21 @@ if generate:
 
 if "recommendations" in st.session_state:
     recommendations = st.session_state.recommendations
-    score_label = "Similarity" if similarity_method == "mean_embedding" else "Score"
+    score_label = (
+        "Similarity" if similarity_method == "mean_embedding"
+        else "Random score" if similarity_method == "random" else "Score"
+    )
+    score_precision = 6 if similarity_method == "random" else 3
     st.divider()
-    st.subheader("Your closest matches")
-    if similarity_method == "mean_embedding":
+    st.subheader(
+        "Random picks" if similarity_method == "random" else "Your closest matches"
+    )
+    if similarity_method == "random":
+        st.caption(
+            "Each eligible item has one independent Uniform[0, 1) score. "
+            "Ratings, λ, and the embedding model are ignored."
+        )
+    elif similarity_method == "mean_embedding":
         st.caption(
             f"Ranked by cosine similarity to your normalized {model_label} "
             "preference vector."
@@ -307,11 +331,15 @@ if "recommendations" in st.session_state:
             st.markdown(f"**{rank}. {_product_text(row)}**")
             st.caption(
                 f"{_product_details(row)}  \n"
-                f"{score_label}: {row['similarity']:.3f}"
+                f"{score_label}: {row['similarity']:.{score_precision}f}"
             )
 
     st.divider()
-    st.subheader("Closest matches by clothing type")
+    st.subheader(
+        "Random picks by clothing type"
+        if similarity_method == "random"
+        else "Closest matches by clothing type"
+    )
     st.caption(
         f"Up to {TYPE_RECOMMENDATION_COUNT} matches for every available type in "
         "the selected catalog."
@@ -328,7 +356,7 @@ if "recommendations" in st.session_state:
                 st.markdown(f"**{rank}. {_product_text(row)}**")
                 st.caption(
                     f"{_product_details(row)}  \n"
-                    f"{score_label}: {row['similarity']:.3f}"
+                    f"{score_label}: {row['similarity']:.{score_precision}f}"
                 )
 
 st.divider()

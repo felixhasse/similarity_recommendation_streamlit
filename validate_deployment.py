@@ -16,6 +16,7 @@ from recommender import (
     rank_candidates,
     rank_candidates_by_type,
     rank_pairwise_candidates,
+    rank_random_candidates,
 )
 
 
@@ -155,6 +156,15 @@ def main() -> None:
         )
         if len(nearest_results) != 10 or set(nearest_types) != set(typed_results):
             raise RuntimeError(f"{model_key} closest-examples smoke test failed.")
+        random_results, random_types = rank_random_candidates(
+            clothing,
+            gender="Both",
+            top_k=10,
+            top_k_by_type=5,
+            rng=np.random.default_rng(42),
+        )
+        if len(random_results) != 10 or set(random_types) != set(typed_results):
+            raise RuntimeError(f"{model_key} random recommendation smoke test failed.")
     print("Deployment validation passed.")
 
 

@@ -32,6 +32,10 @@ displayed scores have different scales. *Closest examples* uses the mean
 similarity to each item's two closest liked outfits (or one if only one is liked)
 minus `lambda` times the similarity to its closest disliked outfit. Empty rating
 groups contribute zero. This third method can produce a different ranking.
+The *Random* baseline ignores ratings, `lambda`, and the embedding model. It
+assigns one independent `Uniform[0, 1)` score to each eligible clothing item
+and uses that score for both overall and per-type results. Ratings are not
+required, and generating results again redraws the scores.
 
 Clothing-type grouping is insensitive to capitalization, whitespace, and
 punctuation. Known source spelling variants are mapped to stable labels; for

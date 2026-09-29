@@ -299,6 +299,31 @@ def rank_candidates_by_type(
     return _rank_scored_positions_by_type(index, candidate_positions, scores, top_k)
 
 
+def rank_random_candidates(
+    index: EmbeddingIndex,
+    gender: str,
+    top_k: int = 10,
+    top_k_by_type: int = 5,
+    rng: np.random.Generator | None = None,
+) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+    """Assign each eligible item one independent Uniform[0, 1) score."""
+    if top_k <= 0 or top_k_by_type <= 0:
+        raise RecommendationError("Result counts must be positive.")
+    if "gender" not in index.manifest or "type" not in index.manifest:
+        raise RecommendationError("Candidate manifest needs gender and type columns.")
+
+    candidate_positions = _eligible_candidate_positions(index.manifest, gender)
+    if not len(candidate_positions):
+        raise RecommendationError(f"No recommendation candidates exist for {gender}.")
+    generator = rng if rng is not None else np.random.default_rng()
+    scores = generator.random(len(candidate_positions))
+    overall = _rank_scored_positions(index, candidate_positions, scores, top_k)
+    by_type = _rank_scored_positions_by_type(
+        index, candidate_positions, scores, top_k_by_type
+    )
+    return overall, by_type
+
+
 def rank_pairwise_candidates(
     liked_embeddings: np.ndarray,
     disliked_embeddings: np.ndarray,
