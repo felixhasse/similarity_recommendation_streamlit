@@ -324,6 +324,51 @@ def rank_random_candidates(
     return overall, by_type
 
 
+def rerank_for_type_diversity(
+    candidates: pd.DataFrame,
+    top_k: int = 10,
+    strength: float = 0.08,
+) -> pd.DataFrame:
+    """Greedily soften repeated clothing types within a relevance shortlist."""
+    if top_k <= 0:
+        raise RecommendationError("top_k must be positive.")
+    if not np.isfinite(strength) or strength < 0:
+        raise RecommendationError("Diversity strength must be finite and non-negative.")
+    if "similarity" not in candidates or "type" not in candidates:
+        raise RecommendationError("Candidates need similarity and type columns.")
+    if candidates.empty:
+        raise RecommendationError("No candidates are available for diversification.")
+
+    ordered = candidates.sort_values(
+        "similarity", ascending=False, kind="stable"
+    ).reset_index(drop=True)
+    scores = ordered["similarity"].to_numpy(dtype=float)
+    if not np.all(np.isfinite(scores)):
+        raise RecommendationError("Candidate scores must be finite.")
+    score_range = float(scores[0] - scores[-1])
+    normalized = (
+        (scores - scores[-1]) / score_range
+        if score_range > EPSILON
+        else np.zeros(len(scores), dtype=float)
+    )
+    types = ordered["type"].map(canonicalize_clothing_type).to_numpy()
+    type_counts: dict[str, int] = {}
+    remaining = np.ones(len(ordered), dtype=bool)
+    selected: list[int] = []
+    for _ in range(min(top_k, len(ordered))):
+        repeated_type_penalty = strength * np.asarray(
+            [type_counts.get(item_type, 0) for item_type in types], dtype=float
+        )
+        adjusted = normalized - repeated_type_penalty
+        adjusted[~remaining] = -np.inf
+        position = int(np.argmax(adjusted))
+        selected.append(position)
+        remaining[position] = False
+        item_type = types[position]
+        type_counts[item_type] = type_counts.get(item_type, 0) + 1
+    return ordered.iloc[selected].copy().reset_index(drop=True)
+
+
 def rank_pairwise_candidates(
     liked_embeddings: np.ndarray,
     disliked_embeddings: np.ndarray,

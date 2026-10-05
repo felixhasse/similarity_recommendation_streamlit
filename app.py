@@ -25,6 +25,7 @@ from recommender import (
     rank_candidates_by_type,
     rank_pairwise_candidates,
     rank_random_candidates,
+    rerank_for_type_diversity,
 )
 
 
@@ -34,6 +35,7 @@ MIN_OUTFIT_COUNT = 5
 MAX_OUTFIT_COUNT = 30
 RECOMMENDATION_COUNT = 10
 TYPE_RECOMMENDATION_COUNT = 5
+DIVERSITY_SHORTLIST_COUNT = 200
 GENDER_OPTIONS = {
     "Masculine": "Men",
     "Feminine": "Women",
@@ -189,6 +191,31 @@ with controls[3]:
         disabled=similarity_method == "random",
     )
 
+if similarity_method == "random":
+    diversify_types = False
+    diversity_strength = 0.0
+else:
+    diversify_types = st.toggle(
+        "Diversify overall top 10 by clothing type",
+        value=False,
+        help=(
+            "Rerank the 200 closest items with a soft penalty for each already "
+            "selected item of the same clothing type. Per-type lists are unchanged."
+        ),
+    )
+    diversity_strength = (
+        st.slider(
+            "Diversity strength",
+            min_value=0.0,
+            max_value=0.5,
+            value=0.08,
+            step=0.01,
+            help="0 keeps the original ranking; higher values favor more clothing types.",
+        )
+        if diversify_types
+        else 0.0
+    )
+
 selected_indices = np.asarray(st.session_state.outfit_indices, dtype=int)
 selected_outfits = outfit_index.manifest.iloc[selected_indices]
 st.subheader(f"Your {outfit_count} outfits")
@@ -226,7 +253,15 @@ if similarity_method != "random":
 current_signature = (
     ("random", gender)
     if similarity_method == "random"
-    else (tuple(ratings), float(lambda_negative), gender, model_key, similarity_method)
+    else (
+        tuple(ratings),
+        float(lambda_negative),
+        gender,
+        model_key,
+        similarity_method,
+        diversify_types,
+        float(diversity_strength),
+    )
 )
 if st.session_state.get("recommendation_signature") != current_signature:
     st.session_state.pop("recommendations", None)
@@ -249,6 +284,9 @@ if generate:
                 top_k_by_type=TYPE_RECOMMENDATION_COUNT,
             )
         else:
+            candidate_count = (
+                DIVERSITY_SHORTLIST_COUNT if diversify_types else RECOMMENDATION_COUNT
+            )
             selected_embeddings = np.asarray(outfit_index.embeddings[selected_indices])
             liked_mask = np.asarray([rating == "Like" for rating in ratings])
             liked_embeddings = selected_embeddings[liked_mask]
@@ -263,7 +301,7 @@ if generate:
                     preference,
                     clothing_index,
                     gender,
-                    top_k=RECOMMENDATION_COUNT,
+                    top_k=candidate_count,
                 )
                 type_recommendations = rank_candidates_by_type(
                     preference,
@@ -278,9 +316,15 @@ if generate:
                     clothing_index,
                     gender,
                     lambda_negative=lambda_negative,
-                    top_k=RECOMMENDATION_COUNT,
+                    top_k=candidate_count,
                     top_k_by_type=TYPE_RECOMMENDATION_COUNT,
                     aggregation="nearest" if similarity_method == "nearest" else "mean",
+                )
+            if diversify_types:
+                recommendations = rerank_for_type_diversity(
+                    recommendations,
+                    top_k=RECOMMENDATION_COUNT,
+                    strength=diversity_strength,
                 )
     except RecommendationError as error:
         st.warning(str(error))
@@ -320,6 +364,12 @@ if "recommendations" in st.session_state:
             "Score = mean cosine similarity to the two closest liked outfits "
             "− λ × cosine similarity to the closest disliked outfit. "
             "A missing rating group contributes zero."
+        )
+    if diversify_types:
+        st.caption(
+            f"Overall results are reranked from the top {DIVERSITY_SHORTLIST_COUNT} "
+            "matches with a soft penalty for repeated clothing types. The "
+            "displayed match scores are unchanged and may not be in descending order."
         )
     result_columns = st.columns(5)
     for rank, (_, row) in enumerate(recommendations.iterrows(), start=1):

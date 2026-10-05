@@ -37,6 +37,13 @@ assigns one independent `Uniform[0, 1)` score to each eligible clothing item
 and uses that score for both overall and per-type results. Ratings are not
 required, and generating results again redraws the scores.
 
+For the three embedding-based methods, users can optionally diversify the
+overall top 10 by clothing type. The app takes the top 200 matches, rescales
+their match scores to `[0, 1]`, and greedily subtracts the selected diversity
+strength for each already chosen item of the same canonical type. This is a
+soft penalty rather than a quota and is off by default. Per-type results and
+the Random baseline are unchanged; displayed match scores remain unadjusted.
+
 Clothing-type grouping is insensitive to capitalization, whitespace, and
 punctuation. Known source spelling variants are mapped to stable labels; for
 example, `Night gown` becomes `Nightgown` and `Jacker` becomes `Jacket`.

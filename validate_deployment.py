@@ -17,6 +17,7 @@ from recommender import (
     rank_candidates_by_type,
     rank_pairwise_candidates,
     rank_random_candidates,
+    rerank_for_type_diversity,
 )
 
 
@@ -165,6 +166,18 @@ def main() -> None:
         )
         if len(random_results) != 10 or set(random_types) != set(typed_results):
             raise RuntimeError(f"{model_key} random recommendation smoke test failed.")
+        shortlist = rank_candidates(preference, clothing, gender="Both", top_k=200)
+        diversified = rerank_for_type_diversity(
+            shortlist, top_k=10, strength=0.08
+        )
+        unchanged = rerank_for_type_diversity(shortlist, top_k=10, strength=0)
+        if (
+            len(diversified) != 10
+            or not set(diversified["image_path"]).issubset(set(shortlist["image_path"]))
+            or unchanged["image_path"].tolist()
+            != shortlist.head(10)["image_path"].tolist()
+        ):
+            raise RuntimeError(f"{model_key} type-diversity smoke test failed.")
     print("Deployment validation passed.")
 
 
